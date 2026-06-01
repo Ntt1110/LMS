@@ -1,10 +1,13 @@
 package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.LoginRequest;
+import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.security.JwtService;
 
 
+import com.example.LMS.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,27 +24,22 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
+    private final AuthService authService;
 
 
 
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-        // 1. Spring Security kiểm tra username và password
-        // Nếu sai mật khẩu, nó sẽ tự văng lỗi 403 Forbidden ở đây
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-        );
+    public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
 
-        // 2. Nếu đúng, tải thông tin User lên
-        UserDetails user = userDetailsService.loadUserByUsername(request.getUsername());
+        // 1. Giao cho AuthService xử lý logic và lấy kết quả
+        AuthResponse responseData = authService.login(request);
 
-        // 3. Tạo Token từ thông tin User
-        String accessToken = jwtService.generateToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
-
-        // 4. Trả về cho Frontend
-        return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken));
+        // 2. Bọc kết quả vào ApiResponse và trả về cho Frontend
+        return ApiResponse.<AuthResponse>builder()
+                .code(200)
+                .message("Đăng nhập thành công!")
+                .data(responseData)
+                .build();
     }
-
 }
