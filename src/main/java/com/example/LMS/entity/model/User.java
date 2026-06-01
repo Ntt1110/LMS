@@ -60,6 +60,20 @@ public class User implements UserDetails {
     )
     private java.util.Set<Role> roles = new java.util.HashSet<>();
 
+    // Quan hệ 1-1 với user_profiles
+    // mappedBy = "user" vì UserProfile là bên sở hữu FK (user_profiles.user_id)
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserProfile profile;
+
+    /**
+     * Trả về cả ROLE_ prefix lẫn từng permission code.
+     * Ví dụ user ADMIN sẽ có:
+     *   - ROLE_ADMIN
+     *   - USER_VIEW, USER_CREATE, USER_ASSIGN_ROLE, ... (tất cả permission của ADMIN)
+     *
+     * Nhờ đó @PreAuthorize("hasAuthority('USER_VIEW')") trong Controller mới hoạt động.
+     */
+
     // CẬP NHẬT LẠI HÀM NÀY:
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
