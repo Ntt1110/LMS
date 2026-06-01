@@ -10,6 +10,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -81,9 +82,23 @@ public class User implements UserDetails {
             return List.of();
         }
         // Duyệt qua danh sách Role của user và chuyển thành quyền của Spring Security
-        return this.roles.stream()
+        List<SimpleGrantedAuthority> roleAuthorities = this.roles.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getCode()))
                 .toList();
+
+        // 2. Thu thập thêm tất cả các Permission chi tiết từ các Role đó
+        List<SimpleGrantedAuthority> permissionAuthorities = this.roles.stream()
+                .filter(role -> role.getPermissions() != null) // Tránh lỗi NullPointerException nếu role chưa có quyền
+                .flatMap(role -> role.getPermissions().stream())
+                .map(permission -> new SimpleGrantedAuthority(permission.getCode())) // Đổi sang SimpleGrantedAuthority (VD: "USER_VIEW")
+                .toList();
+
+        // 3. Gộp cả hai danh sách (Role + Permission) lại làm một và trả về
+        List<SimpleGrantedAuthority> totalAuthorities = new ArrayList<>();
+        totalAuthorities.addAll(roleAuthorities);
+        totalAuthorities.addAll(permissionAuthorities);
+
+        return totalAuthorities;
     }
     @Override
     public String getPassword() {

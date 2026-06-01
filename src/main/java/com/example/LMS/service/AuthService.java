@@ -2,6 +2,7 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.request.LoginRequest;
 import com.example.LMS.dto.response.AuthResponse;
+import com.example.LMS.entity.model.Permission;
 import com.example.LMS.entity.model.Role;
 import com.example.LMS.entity.model.User;
 import com.example.LMS.exception.CustomException;
@@ -66,13 +67,11 @@ public class AuthService {
         String avatarUrl = "";
 
         // 6. Lấy danh sách Permissions
-        // (Hiện tại mock tạm để test Frontend. Sau này sẽ query từ bảng permissions qua bảng trung gian)
-        List<String> permissions = new ArrayList<>();
-        if (roleCodes.contains("ADMIN")) {
-            permissions.addAll(List.of("USER_VIEW", "USER_CREATE", "USER_UPDATE", "USER_DELETE"));
-        } else {
-            permissions.add("USER_VIEW");
-        }
+        List<String> permissions = user.getRoles().stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .map(Permission::getCode)
+                .distinct()
+                .toList();
 
         // 7. Đóng gói dữ liệu UserInfo
         AuthResponse.UserInfo userInfo = AuthResponse.UserInfo.builder()
