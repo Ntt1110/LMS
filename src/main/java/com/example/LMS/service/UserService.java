@@ -35,6 +35,7 @@ public class UserService {
     private final UserProfileRepository userProfileRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     // ============================================================
     // DANH SÁCH NGƯỜI DÙNG
@@ -239,10 +240,12 @@ public class UserService {
             throw new CustomException(HttpStatus.FORBIDDEN, e.getMessage());
         }
 
+
         // 3. Khởi tạo thực thể User và mã hóa mật khẩu an toàn
+        String inputPassword = request.getPassword();
         User newUser = User.builder()
                 .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword())) // Mã hóa BCrypt!
+                .password(passwordEncoder.encode(inputPassword) )// Mã hóa BCrypt!
                 .email(request.getEmail())
                 .isActive(true) // Mặc định tài khoản mới sẽ được kích hoạt luôn
                 .roles(new HashSet<>(checkRoles)) // Gán danh sách vai trò vào bảng trung gian user_roles
@@ -260,7 +263,9 @@ public class UserService {
                 .build();
 
         userProfileRepository.save(newProfile);
-        log.info("✅ Tạo tài khoản thành công! User ID: {}, Họ tên: {}", savedUser.getId(), request.getFullName());
+        emailService.sendPasswordEmail(savedUser.getEmail(), request.getFullName(), savedUser.getUsername(),inputPassword);
+
+        log.info("✅ Đã tạo tài khoản và kích hoạt lệnh gửi mail ngầm thành công.");
     }
 
 }
