@@ -3,6 +3,7 @@ package com.example.LMS.service;
 import com.example.LMS.dto.request.CourseApproveRequest;
 import com.example.LMS.dto.request.CourseListRequest;
 import com.example.LMS.dto.request.CourseProposalRequest;
+import com.example.LMS.dto.request.CourseRejectRequest;
 import com.example.LMS.dto.response.CourseResponse;
 import com.example.LMS.entity.model.Course;
 import com.example.LMS.entity.model.Department;
@@ -56,18 +57,15 @@ public class CourseService {
 
     // ============================================================
     // ĐỀ XUẤT MÔN HỌC (COURSE_PROPOSE)
-    // Tạo môn học mới với status = PENDING
     // ============================================================
     public CourseResponse proposeCourse(CourseProposalRequest request) {
 
-        // 1. Kiểm tra khoa tồn tại
         Department department = departmentRepository.findById(request.getDepartmentId())
                 .orElseThrow(() -> new CustomException(
                         HttpStatus.NOT_FOUND,
                         "Không tìm thấy khoa với id: " + request.getDepartmentId()
                 ));
 
-        // 2. Kiểm tra mã môn học đã tồn tại chưa
         if (courseRepository.existsByCode(request.getCode())) {
             throw new CustomException(
                     HttpStatus.CONFLICT,
@@ -75,14 +73,13 @@ public class CourseService {
             );
         }
 
-        // 3. Tạo môn học mới với status PENDING
         Course course = Course.builder()
                 .department(department)
                 .code(request.getCode().toUpperCase().trim())
                 .name(request.getName().trim())
                 .credits(request.getCredits())
-                .theoreticalHours(request.getTheoreticalHours())
-                .practicalHours(request.getPracticalHours())
+                .theoreticalHours(request.getTheoreticalHours() != null ? request.getTheoreticalHours() : 0)
+                .practicalHours(request.getPracticalHours() != null ? request.getPracticalHours() : 0)
                 .description(request.getDescription())
                 .status(Course.Status.PENDING)
                 .build();
@@ -92,7 +89,6 @@ public class CourseService {
 
     // ============================================================
     // DANH SÁCH CHỜ DUYỆT (COURSE_APPROVE_LIST)
-    // Lấy danh sách môn học có status = PENDING
     // ============================================================
     public Page<CourseResponse> getPendingCourses(int page, int size) {
 
@@ -109,50 +105,48 @@ public class CourseService {
     }
 
     // ============================================================
-    // DUYỆT / TỪ CHỐI MÔN HỌC (COURSE_APPROVE)
+    // DUYỆT MÔN HỌC (COURSE_APPROVE)
     // ============================================================
     public CourseResponse approveCourse(CourseApproveRequest request) {
 
-        // 1. Tìm môn học
-        Course course = courseRepository.findByIdAndDeletedAtIsNull(request.getCourseId())
+        Course course = findPendingCourse(request.getCourseId());
+        course.setStatus(Course.Status.APPROVED);
+        course.setRejectReason(null);
+
+        return CourseResponse.fromEntity(courseRepository.save(course));
+    }
+
+    // ============================================================
+    // TỪ CHỐI MÔN HỌC (COURSE_APPROVE)
+    // ============================================================
+    public CourseResponse rejectCourse(CourseRejectRequest request) {
+
+        Course course = findPendingCourse(request.getCourseId());
+        course.setStatus(Course.Status.REJECTED);
+        course.setRejectReason(request.getRejectReason().trim());
+
+        return CourseResponse.fromEntity(courseRepository.save(course));
+    }
+
+    // ============================================================
+    // HELPER: Tìm môn học PENDING, tránh lặp code
+    // ============================================================
+    private Course findPendingCourse(Long id) {
+
+        Course course = courseRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new CustomException(
                         HttpStatus.NOT_FOUND,
-                        "Không tìm thấy môn học với id: " + request.getCourseId()
+                        "Không tìm thấy môn học với id: " + id
                 ));
 
-        // 2. Chỉ duyệt được môn đang PENDING
         if (course.getStatus() != Course.Status.PENDING) {
             throw new CustomException(
                     HttpStatus.BAD_REQUEST,
-                    "Chỉ có thể duyệt môn học đang ở trạng thái PENDING"
+                    "Chỉ có thể duyệt/từ chối môn học đang ở trạng thái PENDING"
             );
         }
 
-        // 3. Xử lý action
-        String action = request.getAction().toUpperCase();
-
-        if (action.equals("APPROVED")) {
-            course.setStatus(Course.Status.APPROVED);
-            course.setRejectReason(null);
-
-        } else if (action.equals("REJECTED")) {
-            if (request.getRejectReason() == null || request.getRejectReason().isBlank()) {
-                throw new CustomException(
-                        HttpStatus.BAD_REQUEST,
-                        "Lý do từ chối không được để trống"
-                );
-            }
-            course.setStatus(Course.Status.REJECTED);
-            course.setRejectReason(request.getRejectReason().trim());
-
-        } else {
-            throw new CustomException(
-                    HttpStatus.BAD_REQUEST,
-                    "Action không hợp lệ. Chỉ chấp nhận: APPROVED hoặc REJECTED"
-            );
-        }
-
-        return CourseResponse.fromEntity(courseRepository.save(course));
+        return course;
     }
 
     // ============================================================
@@ -165,7 +159,6 @@ public class CourseService {
 
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
 
-            // Tìm theo code hoặc name
             if (request.getKeyword() != null && !request.getKeyword().isBlank()) {
                 String pattern = "%" + request.getKeyword().trim().toLowerCase() + "%";
                 predicates.add(cb.or(
@@ -174,7 +167,6 @@ public class CourseService {
                 ));
             }
 
-            // Lọc theo status
             if (request.getStatus() != null && !request.getStatus().isBlank()) {
                 try {
                     Course.Status status = Course.Status.valueOf(request.getStatus().toUpperCase());
@@ -182,13 +174,11 @@ public class CourseService {
                 } catch (IllegalArgumentException ignored) {}
             }
 
-            // Lọc theo khoa
             if (request.getDepartmentId() != null) {
                 Join<Object, Object> deptJoin = root.join("department", JoinType.INNER);
                 predicates.add(cb.equal(deptJoin.get("id"), request.getDepartmentId()));
             }
 
-            // Chỉ lấy môn chưa bị xóa mềm
             predicates.add(cb.isNull(root.get("deletedAt")));
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
