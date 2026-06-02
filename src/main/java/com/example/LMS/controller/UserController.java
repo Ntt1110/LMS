@@ -4,6 +4,7 @@ import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.UserListRequest;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.UserResponse;
+import com.example.LMS.entity.model.User;
 import com.example.LMS.service.AuthService;
 import com.example.LMS.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -80,12 +81,12 @@ public class UserController {
     }
 
     @PostMapping("/create-with-roles")
-    @PreAuthorize("hasRole('ADMIN')") // 🛡️ Chỉ ADMIN tối cao mới có đặc quyền tự tạo tài khoản gán quyền kiểu này
+    @PreAuthorize("hasAuthority('USER_CREATE')") // 🛡️ Chỉ ADMIN tối cao mới có đặc quyền tự tạo tài khoản gán quyền kiểu này
     @Operation(summary = "Tạo tài khoản người dùng mới và gán Vai trò", description = "Tự động tạo kèm hồ sơ Profile trống. Chỉ ADMIN mới gọi được")
     public ApiResponse<String> createUser(@Valid @RequestBody CreateUserRequest request) {
 
         // Gọi Service xử lý liên kết dữ liệu đa bảng
-        authService.createUserWithRoles(request);
+        userService.createUserWithRoles(request);
 
         return ApiResponse.<String>builder()
                 .code(201) // Mã 201 Created chuẩn thiết kế RESTful

@@ -36,8 +36,8 @@ public class AuthorizationController {
     }
 
     @GetMapping("/permissions")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Lấy danh sách tất cả các Quyền hạn chi tiết (Permissions)", description = "Chỉ tài khoản ADMIN mới có quyền truy cập")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'ACADEMIC_DEPT')")
+    @Operation(summary = "Lấy danh sách tất cả các Quyền hạn chi tiết (Permissions)", description = "Chỉ tài khoản có quyền truy cập")
     public ApiResponse<List<PermissionResponse>> getPermissions() {
         return ApiResponse.<List<PermissionResponse>>builder()
                 .code(200)
@@ -47,7 +47,7 @@ public class AuthorizationController {
     }
 
     @PutMapping("/roles/assign-permissions")
-    @PreAuthorize("hasRole('ADMIN')") // 🛡️ Chỉ tài khoản tối cao ADMIN mới được phép cấu hình bảng quyền này
+    @PreAuthorize("hasAuthority('USER_ASSIGN_ROLE')")
     @Operation(summary = "Gán danh sách các quyền hạn chi tiết cho một Vai trò", description = "Chỉ tài khoản ADMIN mới có quyền thực thi")
     public ApiResponse<String> assignPermissions(@Valid @RequestBody AssignPermissionsRequest request) {
 
