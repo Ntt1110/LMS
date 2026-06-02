@@ -35,8 +35,8 @@ public class Course {
     @Column(nullable = false)
     private Integer credits; //Sotin chi
 
-    @Column(name = "theoretica_hours")
-    private Integer theoreticaHours; // so tiet ly thuyet
+    @Column(name = "theoretical_hours")
+    private Integer theoreticalHours; // so tiet ly thuyet
 
     @Column(name = "practical_hours")
     private Integer practicalHours; // so tiet thuc hanh
