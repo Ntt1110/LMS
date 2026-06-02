@@ -20,6 +20,11 @@ public class UserListRequest {
     // JOIN: users -> student_profiles -> majors
     private Long majorId;
 
+    // Lọc theo khoa:
+//   STUDENT:    users -> student_profiles -> majors -> departments
+//   INSTRUCTOR: users -> teacher_profiles -> departments
+    private Long departmentId;
+
     // Phân trang
     private int page = 0;
     private int size = 10;
