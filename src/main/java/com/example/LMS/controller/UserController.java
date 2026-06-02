@@ -1,11 +1,15 @@
 package com.example.LMS.controller;
 
+import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.UserListRequest;
+import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.UserResponse;
+import com.example.LMS.service.AuthService;
 import com.example.LMS.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
 
     // ============================================================
     // GET /api/v1/users
@@ -72,5 +77,20 @@ public class UserController {
     )
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
+    }
+
+    @PostMapping("/create-with-roles")
+    @PreAuthorize("hasRole('ADMIN')") // 🛡️ Chỉ ADMIN tối cao mới có đặc quyền tự tạo tài khoản gán quyền kiểu này
+    @Operation(summary = "Tạo tài khoản người dùng mới và gán Vai trò", description = "Tự động tạo kèm hồ sơ Profile trống. Chỉ ADMIN mới gọi được")
+    public ApiResponse<String> createUser(@Valid @RequestBody CreateUserRequest request) {
+
+        // Gọi Service xử lý liên kết dữ liệu đa bảng
+        authService.createUserWithRoles(request);
+
+        return ApiResponse.<String>builder()
+                .code(201) // Mã 201 Created chuẩn thiết kế RESTful
+                .message("Tạo tài khoản và gán vai trò thành công!")
+                .data("Created Successfully")
+                .build();
     }
 }
