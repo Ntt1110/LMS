@@ -16,13 +16,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.example.LMS.entity.model.TeacherProfile;
 import com.example.LMS.repository.TeacherProfileRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Set;
+import java.util.HashSet;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +48,10 @@ public class UserService {
     // DANH SÁCH NGƯỜI DÙNG
     // ============================================================
     public Page<UserResponse> getUsers(UserListRequest request) {
+
+        // Tính danh sách id cần ẩn theo người đang login
+        User currentUser = getCurrentUser();
+        request.setExcludeUserIds(getExcludedUserIds(currentUser));
 
         // 1. Tạo Pageable (phân trang + sắp xếp)
         Sort sort = request.getSortDirection().equalsIgnoreCase("asc")
@@ -82,6 +90,41 @@ public class UserService {
                 profileMap.get(user.getId()),
                 teacherProfileMap.get(user.getId())
         ));
+    }
+    private User getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "Không xác định được người dùng hiện tại"));
+    }
+
+    private List<Long> getExcludedUserIds(User currentUser) {
+        Set<String> myRoles = currentUser.getRoles().stream()
+                .map(Role::getCode).collect(Collectors.toSet());
+
+        List<String> rolesToHide = new ArrayList<>();
+
+        if (myRoles.contains("PRINCIPAL")) {
+            rolesToHide.add("ADMIN");
+        }
+        if (myRoles.contains("HR")) {
+            rolesToHide.add("ADMIN");
+            rolesToHide.add("PRINCIPAL");
+        }
+        if (myRoles.contains("TRAINING_DEPT")) {
+            rolesToHide.add("ADMIN");
+            rolesToHide.add("PRINCIPAL");
+            rolesToHide.add("HR");
+        }
+        // ADMIN không cần ẩn role nào, chỉ ẩn bản thân
+
+        List<Long> excludedIds = new ArrayList<>();
+        excludedIds.add(currentUser.getId()); // luôn ẩn bản thân
+
+        if (!rolesToHide.isEmpty()) {
+            excludedIds.addAll(userRepository.findUserIdsByRoleCodes(rolesToHide));
+        }
+
+        return excludedIds;
     }
 
     // ============================================================
@@ -164,6 +207,12 @@ public class UserService {
                 // Thỏa một trong hai nhánh là match
                 predicates.add(cb.or(studentDeptPredicate, teacherDeptPredicate));
             }
+
+            // Ẩn bản thân + các role cấp trên tùy theo người đang login
+            if (request.getExcludeUserIds() != null && !request.getExcludeUserIds().isEmpty()) {
+                predicates.add(cb.not(root.get("id").in(request.getExcludeUserIds())));
+            }
+
             // Chỉ lấy user chưa bị xóa mềm
             predicates.add(cb.isNull(root.get("deletedAt")));
 
