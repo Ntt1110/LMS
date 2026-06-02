@@ -40,6 +40,7 @@ public class UserController {
                     - isActive: true / false
                     - roleCode: ADMIN | STUDENT | INSTRUCTOR | ...
                     - majorId: id ngành học (chỉ có ý nghĩa với STUDENT)
+                    - departmentId: id khoa (STUDENT qua major, INSTRUCTOR qua teacher_profile)
                     """
     )
     public ResponseEntity<Page<UserResponse>> getUsers(
@@ -47,6 +48,7 @@ public class UserController {
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String roleCode,
             @RequestParam(required = false) Long majorId,
+            @RequestParam(required = false) Long departmentId,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -57,6 +59,7 @@ public class UserController {
         request.setIsActive(isActive);
         request.setRoleCode(roleCode);
         request.setMajorId(majorId);
+        request.setDepartmentId(departmentId);
         request.setPage(page);
         request.setSize(size);
         request.setSortBy(sortBy);
