@@ -5,7 +5,9 @@ import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.entity.model.Permission;
 import com.example.LMS.entity.model.Role;
 import com.example.LMS.entity.model.User;
+import com.example.LMS.entity.model.UserProfile;
 import com.example.LMS.exception.CustomException;
+import com.example.LMS.repository.UserProfileRepository;
 import com.example.LMS.repository.UserRepository;
 import com.example.LMS.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +29,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final JwtService jwtService;
-
+    private final UserProfileRepository userProfileRepository;
     // TODO: Tiêm thêm UserProfileRepository và PermissionRepository vào đây ở các bước sau
 
     public AuthResponse login(LoginRequest request) {
@@ -63,8 +65,10 @@ public class AuthService {
 
         // 5. Lấy thông tin UserProfile
         // (Hiện tại đang mock dữ liệu. Sau khi ông tạo UserProfileRepository thì gọi: profileRepo.findByUserId(user.getId()))
-        String fullName = "Thành viên " + user.getUsername();
-        String avatarUrl = "";
+        UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElse(null);
+
+        String fullName = (profile != null) ? profile.getFullName() : "Thành viên " + user.getUsername();
+        String avatarUrl = (profile != null) ? profile.getAvatarUrl() : "";
 
         // 6. Lấy danh sách Permissions
         List<String> permissions = user.getRoles().stream()
