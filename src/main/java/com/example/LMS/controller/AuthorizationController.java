@@ -36,7 +36,7 @@ public class AuthorizationController {
     }
 
     @GetMapping("/permissions")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'ACADEMIC_DEPT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'PRINCIPAL')")
     @Operation(summary = "Lấy danh sách tất cả các Quyền hạn chi tiết (Permissions)", description = "Chỉ tài khoản có quyền truy cập")
     public ApiResponse<List<PermissionResponse>> getPermissions() {
         return ApiResponse.<List<PermissionResponse>>builder()
