@@ -15,4 +15,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     // Dùng khi xem chi tiết — chỉ lấy user chưa bị xóa mềm
     Optional<User> findByIdAndDeletedAtIsNull(Long id);
+
+    boolean existsByUsername(String username);
+
+    boolean existsByEmail(String email);
 }
