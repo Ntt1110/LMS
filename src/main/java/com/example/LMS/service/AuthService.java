@@ -3,6 +3,7 @@ package com.example.LMS.service;
 import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.LoginRequest;
 import com.example.LMS.dto.response.AuthResponse;
+import com.example.LMS.dto.response.UserProfileResponse;
 import com.example.LMS.entity.model.Permission;
 import com.example.LMS.entity.model.Role;
 import com.example.LMS.entity.model.User;
@@ -145,6 +146,37 @@ public class AuthService {
 
         userProfileRepository.save(newProfile);
         log.info("✅ Tạo tài khoản thành công! User ID: {}, Họ tên: {}", savedUser.getId(), request.getFullName());
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileResponse getCurrentUserProfile() {
+        // 1. Lấy thông tin username của người dùng đang đăng nhập từ SecurityContext của Spring Security
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        log.info("⏳ Đang lấy hồ sơ cá nhân cho tài khoản đang đăng nhập: {}", currentUsername);
+
+        // 2. Tìm User trong DB, nếu không có ném lỗi 404
+        User user = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin tài khoản!"));
+
+        // 3. Tìm UserProfile tương ứng
+        UserProfile profile = userProfileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Hồ sơ người dùng không tồn tại!"));
+
+        // 4. Map sang DTO Response để trả về (Dùng lại cái DTO UserProfileResponse hôm trước)
+        return UserProfileResponse.builder()
+                .id(profile.getId())
+                .userId(user.getId())
+                .fullName(profile.getFullName())
+                .phone(profile.getPhone())
+                .birthday(profile.getBirthday() != null ? profile.getBirthday().toString() : null)
+                .gender(profile.getGender() != null ? profile.getGender().name() : null)
+                .avatarUrl(profile.getAvatarUrl())
+                .address(profile.getAddress())
+                .build();
     }
 }
 

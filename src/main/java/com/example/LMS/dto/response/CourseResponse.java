@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
+@Builder
 public class CourseResponse {
     // === Từ bảng courses ===
     private Long id;
@@ -23,6 +24,7 @@ public class CourseResponse {
     private String lockReason;
     private LocalDateTime createdAt;
     private LocalDateTime deletedAt;
+    private LocalDateTime updateAt;
 
     // === Từ bảng departments (JOIN) ===
     private Long departmentId;
@@ -42,7 +44,7 @@ public class CourseResponse {
                 .rejectReason(course.getRejectReason())
                 .lockReason(course.getLockReason())
                 .createdAt(course.getCreatedAt())
-                .updatedAt(course.getUpdatedAt())
+                .updateAt(course.getUpdatedAt())
                 // Thông tin khoa
                 .departmentId(course.getDepartment().getId())
                 .departmentCode(course.getDepartment().getCode())
