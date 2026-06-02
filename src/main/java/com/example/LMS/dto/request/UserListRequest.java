@@ -16,6 +16,10 @@ public class UserListRequest {
     // Lọc theo role code (ví dụ: "ADMIN", "STUDENT")
     private String roleCode;
 
+    // Lọc theo ngành học (chỉ có ý nghĩa với STUDENT)
+    // JOIN: users -> student_profiles -> majors
+    private Long majorId;
+
     // Phân trang
     private int page = 0;
     private int size = 10;

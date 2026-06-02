@@ -111,6 +111,14 @@ public class UserService {
                 predicates.add(cb.equal(rolesJoin.get("code"), request.getRoleCode().toUpperCase()));
             }
 
+            // Filter theo majorId (JOIN: users -> student_profiles -> majors)
+            // Chỉ có ý nghĩa với STUDENT vì chỉ student_profiles mới có major_id
+            if (request.getMajorId() != null) {
+                Join<Object, Object> studentProfileJoin = root.join("studentProfile", JoinType.INNER);
+                predicates.add(cb.equal(studentProfileJoin.get("major").get("id"), request.getMajorId()));
+            }
+
+
             // Chỉ lấy user chưa bị xóa mềm
             predicates.add(cb.isNull(root.get("deletedAt")));
 

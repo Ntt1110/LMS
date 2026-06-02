@@ -29,12 +29,19 @@ public class UserController {
     @PreAuthorize("hasAuthority('USER_VIEW')")
     @Operation(
             summary = "Danh sách người dùng",
-            description = "Filter theo keyword (username/email/full_name), isActive, roleCode. Hỗ trợ phân trang và sắp xếp."
+            description = """
+                    Filter theo:
+                    - keyword: tìm theo username / email / full_name
+                    - isActive: true / false
+                    - roleCode: ADMIN | STUDENT | INSTRUCTOR | ...
+                    - majorId: id ngành học (chỉ có ý nghĩa với STUDENT)
+                    """
     )
     public ResponseEntity<Page<UserResponse>> getUsers(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String roleCode,
+            @RequestParam(required = false) Long majorId,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -44,6 +51,7 @@ public class UserController {
         request.setKeyword(keyword);
         request.setIsActive(isActive);
         request.setRoleCode(roleCode);
+        request.setMajorId(majorId);
         request.setPage(page);
         request.setSize(size);
         request.setSortBy(sortBy);
