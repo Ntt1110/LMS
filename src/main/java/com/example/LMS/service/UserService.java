@@ -18,6 +18,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.example.LMS.entity.model.TeacherProfile;
+import com.example.LMS.repository.TeacherProfileRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +35,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -65,9 +68,19 @@ public class UserService {
                         p -> p.getUser().getId(),
                         p -> p
                 ));
-
+        // Lấy teacher profiles của trang hiện tại trong 1 query (tránh N+1)
+        Map<Long, TeacherProfile> teacherProfileMap = teacherProfileRepository.findAllByUserIdIn(userIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        tp -> tp.getUser().getId(),
+                        tp -> tp
+                ));
         // 5. Map sang DTO, kết hợp user + profile
-        return userPage.map(user -> UserResponse.fromEntity(user, profileMap.get(user.getId())));
+        return userPage.map(user -> UserResponse.fromEntity(
+                user,
+                profileMap.get(user.getId()),
+                teacherProfileMap.get(user.getId())
+        ));
     }
 
     // ============================================================
@@ -86,7 +99,7 @@ public class UserService {
         UserProfile profile = userProfileRepository.findByUserId(id).orElse(null);
 
         // 3. Map sang DTO
-        return UserResponse.fromEntity(user, profile);
+        return UserResponse.fromEntity(user, profile, user.getTeacherProfile());
     }
 
     // ============================================================
@@ -149,30 +162,7 @@ public class UserService {
 
                 // Thỏa một trong hai nhánh là match
                 predicates.add(cb.or(studentDeptPredicate, teacherDeptPredicate));
-            }// Filter theo departmentId — 2 nhánh JOIN khác nhau tùy role:
-//   STUDENT:    users -> student_profiles -> majors -> departments
-//   INSTRUCTOR: users -> teacher_profiles -> departments
-            if (request.getDepartmentId() != null) {
-                // Nhánh STUDENT
-                var studentProfileJoin = root.join("studentProfile", JoinType.LEFT);
-                var majorJoin = studentProfileJoin.join("major", JoinType.LEFT);
-                var studentDeptPredicate = cb.equal(
-                        majorJoin.get("department").get("id"),
-                        request.getDepartmentId()
-                );
-
-                // Nhánh INSTRUCTOR
-                var teacherProfileJoin = root.join("teacherProfile", JoinType.LEFT);
-                var teacherDeptPredicate = cb.equal(
-                        teacherProfileJoin.get("department").get("id"),
-                        request.getDepartmentId()
-                );
-
-                // Thỏa một trong hai nhánh là match
-                predicates.add(cb.or(studentDeptPredicate, teacherDeptPredicate));
             }
-
-
             // Chỉ lấy user chưa bị xóa mềm
             predicates.add(cb.isNull(root.get("deletedAt")));
 

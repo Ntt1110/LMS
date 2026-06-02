@@ -11,8 +11,6 @@ public class CourseListRequest {
     //Tim kiem theo ten khoa hoc hoac ma khoa hoc
     private String keyword;
 
-    // Loc theo trang thai (pending, active, completed)
-    private String status;
 
     //Loc theo khoa
     private Long departmentId;

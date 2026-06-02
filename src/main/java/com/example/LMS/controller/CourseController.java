@@ -28,15 +28,14 @@ public class CourseController {
 
     // ============================================================
     // GET /api/v1/courses
-    // Danh sách môn học
+    // Danh sách môn học (chỉ APPROVED)
     // ============================================================
     @GetMapping
     @PreAuthorize("hasAuthority('COURSE_VIEW')")
     @Operation(summary = "Danh sách môn học",
-            description = "Filter theo keyword (code/name), status (PENDING/APPROVED/REJECTED), departmentId.")
+            description = "Chỉ trả về môn học đã APPROVED. Filter theo keyword (code/name), departmentId.")
     public ResponseEntity<Page<CourseResponse>> getCourses(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
@@ -45,7 +44,6 @@ public class CourseController {
     ) {
         CourseListRequest request = new CourseListRequest();
         request.setKeyword(keyword);
-        request.setStatus(status);
         request.setDepartmentId(departmentId);
         request.setPage(page);
         request.setSize(size);
@@ -85,12 +83,26 @@ public class CourseController {
     // ============================================================
     @GetMapping("/pending")
     @PreAuthorize("hasAuthority('COURSE_APPROVE_LIST')")
-    @Operation(summary = "Danh sách môn học chờ duyệt")
+    @Operation(summary = "Danh sách môn học chờ duyệt (PENDING)")
     public ResponseEntity<Page<CourseResponse>> getPendingCourses(
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(courseService.getPendingCourses(page, size));
+    }
+
+    // ============================================================
+    // GET /api/v1/courses/rejected
+    // Danh sách môn học bị từ chối
+    // ============================================================
+    @GetMapping("/rejected")
+    @PreAuthorize("hasAuthority('COURSE_APPROVE_LIST')")
+    @Operation(summary = "Danh sách môn học bị từ chối (REJECTED)")
+    public ResponseEntity<Page<CourseResponse>> getRejectedCourses(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(courseService.getRejectedCourses(page, size));
     }
 
     // ============================================================

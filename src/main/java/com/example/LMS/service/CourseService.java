@@ -104,6 +104,19 @@ public class CourseService {
                 .map(CourseResponse::fromEntity);
     }
 
+    public Page<CourseResponse> getRejectedCourses(int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Specification<Course> spec = (root, query, cb) ->
+                cb.and(
+                        cb.equal(root.get("status"), Course.Status.REJECTED),
+                        cb.isNull(root.get("deletedAt"))
+                );
+
+        return courseRepository.findAll(spec, pageable)
+                .map(CourseResponse::fromEntity);
+    }
     // ============================================================
     // DUYỆT MÔN HỌC (COURSE_APPROVE)
     // ============================================================
@@ -167,12 +180,7 @@ public class CourseService {
                 ));
             }
 
-            if (request.getStatus() != null && !request.getStatus().isBlank()) {
-                try {
-                    Course.Status status = Course.Status.valueOf(request.getStatus().toUpperCase());
-                    predicates.add(cb.equal(root.get("status"), status));
-                } catch (IllegalArgumentException ignored) {}
-            }
+            predicates.add(cb.equal(root.get("status"), Course.Status.APPROVED));
 
             if (request.getDepartmentId() != null) {
                 Join<Object, Object> deptJoin = root.join("department", JoinType.INNER);

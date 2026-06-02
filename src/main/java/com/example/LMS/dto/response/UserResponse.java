@@ -1,5 +1,6 @@
 package com.example.LMS.dto.response;
 
+import com.example.LMS.entity.model.TeacherProfile;
 import com.example.LMS.entity.model.User;
 import com.example.LMS.entity.model.UserProfile;
 import lombok.Builder;
@@ -34,10 +35,19 @@ public class UserResponse {
     // === Từ bảng roles (qua user_roles) ===
     private Set<String> roles; // ["ADMIN"], ["INSTRUCTOR"], ["STUDENT"], v.v.
 
+    // === Từ bảng teacher_profiles (chỉ có nếu là INSTRUCTOR) ===
+    private String employeeCode;
+    private String academicTitle;
+    private String specialization;
+    private Boolean isVisiting;
+    private LocalDate hireDate;
+    private Long departmentId;
+    private String departmentName;
+
     /**
      * Map từ entity User (đã JOIN sẵn profile) sang DTO
      */
-    public static UserResponse fromEntity(User user, UserProfile profile) {
+    public static UserResponse fromEntity(User user, UserProfile profile, TeacherProfile teacherProfile) {
         UserResponseBuilder builder = UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -58,6 +68,15 @@ public class UserResponse {
                     .gender(profile.getGender() != null ? profile.getGender().name() : null)
                     .avatarUrl(profile.getAvatarUrl())
                     .address(profile.getAddress());
+        }
+        if (teacherProfile != null) {
+            builder.employeeCode(teacherProfile.getEmployeeCode())
+                    .academicTitle(teacherProfile.getAcademicTitle())
+                    .specialization(teacherProfile.getSpecialization())
+                    .isVisiting(teacherProfile.getIsVisiting())
+                    .hireDate(teacherProfile.getHireDate())
+                    .departmentId(teacherProfile.getDepartment().getId())
+                    .departmentName(teacherProfile.getDepartment().getName());
         }
 
         return builder.build();
