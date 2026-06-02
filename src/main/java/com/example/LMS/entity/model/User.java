@@ -66,6 +66,10 @@ public class User implements UserDetails {
     @OneToOne(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private UserProfile profile;
 
+    // Quan hệ 1-1 với student_profiles (chỉ có nếu user là STUDENT)
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private StudentProfile studentProfile;
+
     /**
      * Trả về cả ROLE_ prefix lẫn từng permission code.
      * Ví dụ user ADMIN sẽ có:
