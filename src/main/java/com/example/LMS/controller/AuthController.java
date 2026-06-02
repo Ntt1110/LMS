@@ -3,10 +3,12 @@ package com.example.LMS.controller;
 import com.example.LMS.dto.request.LoginRequest;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.AuthResponse;
+import com.example.LMS.dto.response.UserProfileResponse;
 import com.example.LMS.security.JwtService;
 
 
 import com.example.LMS.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -40,6 +42,19 @@ public class AuthController {
                 .code(200)
                 .message("Đăng nhập thành công!")
                 .data(responseData)
+                .build();
+    }
+
+    @GetMapping("/profile/me")
+    @Operation(summary = "Lấy thông tin hồ sơ của chính người dùng đang đăng nhập", description = "Tự động nhận diện User qua Token gán ở Header")
+    public ApiResponse<UserProfileResponse> getCurrentProfile() {
+        // Gọi Service xử lý trích xuất SecurityContext
+        UserProfileResponse myProfile = authService.getCurrentUserProfile();
+
+        return ApiResponse.<UserProfileResponse>builder()
+                .code(200)
+                .message("Lấy hồ sơ cá nhân thành công!")
+                .data(myProfile)
                 .build();
     }
 }
