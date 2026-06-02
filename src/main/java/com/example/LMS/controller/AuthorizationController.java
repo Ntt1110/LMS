@@ -24,7 +24,7 @@ public class AuthorizationController {
     private final AuthorizationService authorizationService;
 
     @GetMapping("/roles")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','PRINCIPAL','HR','TRAINING_DEPT')")
     // Thêm mô tả ngắn cho từng API nếu muốn xịn hơn
     @Operation(summary = "Lấy danh sách tất cả các Vai trò (Roles)", description = " quyền truy cập")
     public ApiResponse<List<RoleResponse>> getRoles() {

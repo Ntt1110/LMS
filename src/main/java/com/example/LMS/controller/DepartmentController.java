@@ -26,7 +26,7 @@ public class DepartmentController {
     // Danh sách khoa (dùng cho dropdown filter, không phân trang)
     // ============================================================
     @GetMapping
-    @PreAuthorize("hasAuthority('MAJOR_VIEW')")
+    @PreAuthorize("hasAnyRole('ADMIN','PRINCIPAL','TRAINING_DEPT')")
     @Operation(
             summary = "Danh sách khoa",
             description = "Lấy danh sách tất cả khoa. Filter theo keyword (code/name), isActive."
