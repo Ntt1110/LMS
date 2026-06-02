@@ -3,6 +3,8 @@ package com.example.LMS.dto.request;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class UserListRequest {
@@ -24,6 +26,8 @@ public class UserListRequest {
 //   STUDENT:    users -> student_profiles -> majors -> departments
 //   INSTRUCTOR: users -> teacher_profiles -> departments
     private Long departmentId;
+
+    private List<Long> excludeUserIds;
 
     // Phân trang
     private int page = 0;
