@@ -1,10 +1,13 @@
 package com.example.LMS.service;
 
+import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.UserListRequest;
 import com.example.LMS.dto.response.UserResponse;
+import com.example.LMS.entity.model.Role;
 import com.example.LMS.entity.model.User;
 import com.example.LMS.entity.model.UserProfile;
 import com.example.LMS.exception.CustomException;
+import com.example.LMS.repository.RoleRepository;
 import com.example.LMS.repository.UserProfileRepository;
 import com.example.LMS.repository.UserRepository;
 import jakarta.persistence.criteria.Join;
@@ -13,18 +16,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     // ============================================================
     // DANH SÁCH NGƯỜI DÙNG
@@ -169,4 +179,88 @@ public class UserService {
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
     }
+    @Transactional
+    public void createUserWithRoles(CreateUserRequest request) {
+        log.info("⏳ Đang tiến hành tạo tài khoản người dùng mới: {}", request.getUsername());
+
+        // 1. Kiểm tra trùng lặp trùng tên đăng nhập hoặc email trong hệ thống
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Tên tài khoản này đã tồn tại trên hệ thống!");
+        }
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Email này đã được đăng ký bởi tài khoản khác!");
+        }
+
+        // 2. Lấy danh sách các Role thực tế từ DB dựa trên list ID gửi lên
+        List<Role> checkRoles = roleRepository.findAllById(request.getRoleIds());
+        if (checkRoles.size() != request.getRoleIds().size()) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Có chứa ID vai trò không tồn tại trong hệ thống!");
+        }
+        // 3. 🔥 HÀNG RÀO PHÂN CẤP BẰNG ROLE CODE BỌC TRONG TRY-CATCH
+        try {
+            // Lấy thông tin tài khoản đang thực hiện request bấm nút trên giao diện
+            String currentUsername = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext()
+                    .getAuthentication()
+                    .getName();
+
+            User currentUser = userRepository.findByUsername(currentUsername)
+                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản người thực hiện!"));
+
+            // Trích xuất toàn bộ mã code vai trò của người thực hiện (Ví dụ: ["HR"], ["ACADEMIC_DEPT"])
+            java.util.Set<String> currentUserRoleCodes = currentUser.getRoles().stream()
+                    .map(Role::getCode)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // ⛔ Duyệt qua từng vai trò định gán cho user mới để kiểm tra hành vi leo quyền
+            for (Role targetRole : checkRoles) {
+                String targetCode = targetRole.getCode();
+
+                // TRƯỜNG HỢP 1: Người thực hiện là nhân sự phòng HR
+                if (currentUserRoleCodes.contains("HR")) {
+                    // HR tuyệt đối không được phép tạo hoặc gán vai trò ADMIN hoặc RECTOR (Hiệu trưởng)
+                    if (targetCode.equals("ADMIN") || targetCode.equals("RECTOR")) {
+                        throw new IllegalArgumentException("Nhân sự phòng HR không được phép gán vai trò cấp cao: " + targetRole.getName());
+                    }
+                }
+
+                // TRƯỜNG HỢP 2: Người thực hiện là Phòng Đào tạo (ACADEMIC_DEPT)
+                if (currentUserRoleCodes.contains("ACADEMIC_DEPT")) {
+                    // Phòng đào tạo không được phép gán vai trò cho cả 3 bên trên (ADMIN, RECTOR, HR)
+                    if (targetCode.equals("ADMIN") || targetCode.equals("RECTOR") || targetCode.equals("HR")) {
+                        throw new IllegalArgumentException("Nhân sự Phòng Đào tạo không được phép gán vai trò cấp trên: " + targetRole.getName());
+                    }
+                }
+            }
+
+        } catch (IllegalArgumentException e) {
+            // Bắt trọn vẹn lỗi vi phạm quy tắc phân cấp bằng code chuỗi và chuyển đổi thành lỗi 403 Forbidden
+            log.warn("🚨 CẢNH BÁO VI PHẠM PHÂN CẤP: {}", e.getMessage());
+            throw new CustomException(HttpStatus.FORBIDDEN, e.getMessage());
+        }
+
+        // 3. Khởi tạo thực thể User và mã hóa mật khẩu an toàn
+        User newUser = User.builder()
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword())) // Mã hóa BCrypt!
+                .email(request.getEmail())
+                .isActive(true) // Mặc định tài khoản mới sẽ được kích hoạt luôn
+                .roles(new HashSet<>(checkRoles)) // Gán danh sách vai trò vào bảng trung gian user_roles
+                .build();
+
+        // 4. Lưu User vào Database trước để sinh ra được userId
+        User savedUser = userRepository.save(newUser);
+
+        // 5. Đồng bộ khởi tạo luôn bản ghi bên bảng user_profiles
+        // Việc này giúp luồng đăng nhập và xem thông tin sau này luôn có dữ liệu sạch
+        UserProfile newProfile = UserProfile.builder()
+                .user(savedUser) // Link khóa ngoại 1-1 sang bảng users
+                .fullName(request.getFullName())
+                .avatarUrl("https://api.dicebear.com/7.x/adventurer/svg?seed=" + savedUser.getUsername()) // Tạo avatar mặc định ngẫu nhiên cho đẹp
+                .build();
+
+        userProfileRepository.save(newProfile);
+        log.info("✅ Tạo tài khoản thành công! User ID: {}, Họ tên: {}", savedUser.getId(), request.getFullName());
+    }
+
 }
