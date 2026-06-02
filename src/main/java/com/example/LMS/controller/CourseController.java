@@ -3,6 +3,7 @@ package com.example.LMS.controller;
 import com.example.LMS.dto.request.CourseApproveRequest;
 import com.example.LMS.dto.request.CourseListRequest;
 import com.example.LMS.dto.request.CourseProposalRequest;
+import com.example.LMS.dto.request.CourseRejectRequest;
 import com.example.LMS.dto.response.CourseResponse;
 import com.example.LMS.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,7 +28,7 @@ public class CourseController {
 
     // ============================================================
     // GET /api/v1/courses
-    // Danh sách môn học (filter + phân trang)
+    // Danh sách môn học
     // ============================================================
     @GetMapping
     @PreAuthorize("hasAuthority('COURSE_VIEW')")
@@ -56,7 +57,7 @@ public class CourseController {
 
     // ============================================================
     // GET /api/v1/courses/{id}
-    // Xem chi tiết môn học
+    // Chi tiết môn học
     // ============================================================
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('COURSE_VIEW')")
@@ -67,12 +68,12 @@ public class CourseController {
 
     // ============================================================
     // POST /api/v1/courses/propose
-    // Đề xuất môn học mới (status = PENDING)
+    // Đề xuất môn học mới
     // ============================================================
     @PostMapping("/propose")
     @PreAuthorize("hasAuthority('COURSE_PROPOSE')")
     @Operation(summary = "Đề xuất môn học",
-            description = "Tạo yêu cầu thêm môn học mới vào hệ thống. Môn sẽ ở trạng thái PENDING chờ duyệt.")
+            description = "Tạo yêu cầu thêm môn học mới. Môn sẽ ở trạng thái PENDING chờ duyệt.")
     public ResponseEntity<CourseResponse> proposeCourse(@Valid @RequestBody CourseProposalRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(courseService.proposeCourse(request));
@@ -84,8 +85,7 @@ public class CourseController {
     // ============================================================
     @GetMapping("/pending")
     @PreAuthorize("hasAuthority('COURSE_APPROVE_LIST')")
-    @Operation(summary = "Danh sách môn học chờ duyệt",
-            description = "Lấy danh sách các môn học đang ở trạng thái PENDING chờ phê duyệt.")
+    @Operation(summary = "Danh sách môn học chờ duyệt")
     public ResponseEntity<Page<CourseResponse>> getPendingCourses(
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size
@@ -95,13 +95,25 @@ public class CourseController {
 
     // ============================================================
     // POST /api/v1/courses/approve
-    // Duyệt hoặc từ chối môn học
+    // Duyệt môn học
     // ============================================================
     @PostMapping("/approve")
     @PreAuthorize("hasAuthority('COURSE_APPROVE')")
-    @Operation(summary = "Duyệt / Từ chối môn học",
-            description = "action = APPROVED: phê duyệt môn học. action = REJECTED: từ chối kèm lý do.")
+    @Operation(summary = "Duyệt môn học",
+            description = "Phê duyệt môn học đang ở trạng thái PENDING.")
     public ResponseEntity<CourseResponse> approveCourse(@Valid @RequestBody CourseApproveRequest request) {
         return ResponseEntity.ok(courseService.approveCourse(request));
+    }
+
+    // ============================================================
+    // POST /api/v1/courses/reject
+    // Từ chối môn học
+    // ============================================================
+    @PostMapping("/reject")
+    @PreAuthorize("hasAuthority('COURSE_APPROVE')")
+    @Operation(summary = "Từ chối môn học",
+            description = "Từ chối môn học đang ở trạng thái PENDING. Bắt buộc phải có lý do.")
+    public ResponseEntity<CourseResponse> rejectCourse(@Valid @RequestBody CourseRejectRequest request) {
+        return ResponseEntity.ok(courseService.rejectCourse(request));
     }
 }
