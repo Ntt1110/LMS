@@ -1,5 +1,6 @@
 package com.example.LMS.repository;
 
+import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.entity.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -27,4 +28,12 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
+
+
+    @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(u.id, p.fullName) " +
+            "FROM User u " +
+            "JOIN u.profile p " + // ✅ Chuẩn khít biến 'profile' trong User.java
+            "JOIN u.roles r " +   // ✅ Chuẩn khít biến 'roles' trong User.java
+            "WHERE r.code IN ('HEAD_OF_DEPT', 'INSTRUCTOR') AND u.isActive = true")
+    List<DropdownResponseDto> findAllActiveLecturers();
 }

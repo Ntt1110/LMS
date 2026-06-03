@@ -1,5 +1,6 @@
 package com.example.LMS.repository;
 
+import com.example.LMS.entity.Enum.ClassOpenningStatus;
 import com.example.LMS.entity.model.ClassOpeningRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -10,4 +11,6 @@ import java.util.List;
 public interface ClassOpeningRequestRepository extends JpaRepository<ClassOpeningRequest, Long> {
     // Tìm các đơn đề xuất của riêng người thực hiện để hiển thị lịch sử ở UI
     List<ClassOpeningRequest> findByRequesterId(Long requesterId);
+
+    List<ClassOpeningRequest> findByStatusOrderByCreatedAtDesc(ClassOpenningStatus status);
 }

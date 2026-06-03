@@ -26,7 +26,7 @@ public class ClassOpeningRequest {
     private Semester semester;
 
     @Column(name = "course_id", nullable = false)
-    private Long courseId; // Giữ Long nếu chưa map bảng Course, hoặc map @ManyToOne nếu đã có
+    private Long courseId;// Giữ Long nếu chưa map bảng Course, hoặc map @ManyToOne nếu đã có
 
     @Column(name = "requester_id", nullable = false)
     private Long requesterId; // ID của giảng viên/trưởng bộ môn làm đơn đề xuất

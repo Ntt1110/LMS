@@ -1,15 +1,19 @@
 package com.example.LMS.controller;
 
+import com.example.LMS.dto.request.ApproveClassRequestDto;
 import com.example.LMS.dto.request.ClassOpeningRequestDto;
 import com.example.LMS.dto.response.ApiResponse;
+import com.example.LMS.dto.response.ClassOpeningResponseDto;
+import com.example.LMS.dto.response.DropdownResponseDto;
+import com.example.LMS.entity.Enum.ClassOpenningStatus;
 import com.example.LMS.service.ClassOpeningService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/class-requests")
@@ -28,6 +32,79 @@ public class ClassOpeningController {
                 .code(201)
                 .message("Gửi đề xuất mở lớp học phần thành công! Vui lòng chờ phê duyệt.")
                 .data("Submitted Successfully")
+                .build();
+    }
+
+    @GetMapping("/pending")
+    @PreAuthorize("hasAuthority('CLASS_PROPOSE_VIEW')") // 🛡️ CHỐT CHẶN MÃ QUYỀN SỐ 22 CHI TIẾT CỦA TRUNG!
+    @Operation(summary = "Lấy danh sách các đề xuất mở lớp đang chờ duyệt (Dành cho Phòng Đào tạo)")
+    public ApiResponse<List<ClassOpeningResponseDto>> getPendingRequests() {
+
+        List<ClassOpeningResponseDto> data = classOpeningService.getPendingOpeningRequests();
+
+        return ApiResponse.<List<ClassOpeningResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách lớp chờ phê duyệt thành công!")
+                .data(data)
+                .build();
+    }
+
+    @GetMapping("/{requestId}/detail")
+    @PreAuthorize("hasAuthority('CLASS_PROPOSE_VIEW')")
+    public ApiResponse<ClassOpeningResponseDto> getRequestDetail(@PathVariable Long requestId) {
+        return ApiResponse.<ClassOpeningResponseDto>builder()
+                .code(200)
+                .message("Tải chi tiết đơn đề xuất thành công!")
+                .data(classOpeningService.getRequestDetail(requestId))
+                .build();
+    }
+
+    @GetMapping("/dropdown/lecturers")
+    @PreAuthorize("hasAuthority('CLASS_PROPOSE_VIEW')")
+    public ApiResponse<List<DropdownResponseDto>> getLecturers() {
+        return ApiResponse.<List<DropdownResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách giảng viên thành công!")
+                .data(classOpeningService.getLecturersDropdown())
+                .build();
+    }
+
+    @GetMapping("/dropdown/rooms")
+    @PreAuthorize("hasAuthority('CLASS_PROPOSE_VIEW')")
+    public ApiResponse<List<DropdownResponseDto>> getRooms() {
+        return ApiResponse.<List<DropdownResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách phòng học thành công!")
+                .data(classOpeningService.getRoomsDropdown())
+                .build();
+    }
+
+    @GetMapping("/dropdown/shifts")
+    @PreAuthorize("hasAuthority('CLASS_PROPOSE_VIEW')")
+    public ApiResponse<List<DropdownResponseDto>> getShifts() {
+        return ApiResponse.<List<DropdownResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách ca học thành công!")
+                .data(classOpeningService.getShiftsDropdown())
+                .build();
+    }
+
+    @PutMapping("/{requestId}/review")
+    @PreAuthorize("hasAuthority('CLASS_APPROVE') or hasAuthority('CLASS_REJECT')") // 🛡️ BẢO VỆ CHẶT CHẼ BẰNG QUYỀN 23 HOẶC 24
+    @io.swagger.v3.oas.annotations.Operation(summary = "Phê duyệt hoặc Từ chối đơn đề xuất - Chốt dữ liệu từ Form xếp lịch")
+    public ApiResponse<String> reviewRequest(
+            @PathVariable Long requestId,
+            @jakarta.validation.Valid @RequestBody ApproveClassRequestDto reviewDto) {
+
+        classOpeningService.reviewOpeningRequest(requestId, reviewDto);
+
+        String actionMessage = reviewDto.getStatus() == ClassOpenningStatus.APPROVED ?
+                "Đã phê duyệt, khởi tạo lớp học phần và xếp Thời khóa biểu thành công!" : "Đã từ chối đơn đề xuất mở lớp.";
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message(actionMessage)
+                .data(reviewDto.getStatus().name())
                 .build();
     }
 }
