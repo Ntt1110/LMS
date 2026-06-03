@@ -1,6 +1,8 @@
 package com.example.LMS.repository;
 
 import com.example.LMS.entity.model.Course;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -15,4 +17,5 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
 
     // Kiểm tra mã môn học đã tồn tại chưa (dùng khi đề xuất môn mới)
     boolean existsByCode(String code);
+    Page<Course> findByStatusAndDeletedAtIsNull(Course.Status status, Pageable pageable);
 }
