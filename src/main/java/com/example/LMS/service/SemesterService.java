@@ -10,6 +10,8 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import com.example.LMS.dto.request.SemesterCreateRequest;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +47,37 @@ public class SemesterService {
                 ));
 
         return SemesterResponse.fromEntity(semester);
+    }
+
+
+    // ============================================================
+// TẠO HỌC KỲ (SEMESTER_CREATE)
+// ============================================================
+    @Transactional
+    public SemesterResponse createSemester(SemesterCreateRequest request) {
+
+        // Kiểm tra mã học kỳ đã tồn tại chưa
+        if (semesterRepository.existsBySemesterCode(request.getSemesterCode().toUpperCase().trim())) {
+            throw new CustomException(HttpStatus.CONFLICT,
+                    "Mã học kỳ '" + request.getSemesterCode() + "' đã tồn tại");
+        }
+
+        // Kiểm tra ngày hợp lệ
+        if (!request.getEndDate().isAfter(request.getStartDate())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Ngày kết thúc phải sau ngày bắt đầu");
+        }
+
+        Semester semester = Semester.builder()
+                .semesterCode(request.getSemesterCode().toUpperCase().trim())
+                .academicYear(request.getAcademicYear().trim())
+                .semesterNumber(request.getSemesterNumber())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .status(Semester.SemesterStatus.ACTIVE)
+                .build();
+
+        return SemesterResponse.fromEntity(semesterRepository.save(semester));
     }
 
     // ============================================================

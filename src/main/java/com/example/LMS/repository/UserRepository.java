@@ -21,6 +21,9 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query("SELECT DISTINCT u.id FROM User u JOIN u.roles r WHERE r.code IN :roleCodes")
     List<Long> findUserIdsByRoleCodes(@Param("roleCodes") List<String> roleCodes);
 
+    @Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE r.code = :roleCode AND u.deletedAt IS NULL")
+    List<User> findAllByRoleCode(@Param("roleCode") String roleCode);
+
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);

@@ -17,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
@@ -96,5 +98,19 @@ public class UserController {
                 .message("Tạo tài khoản và gán vai trò thành công!")
                 .data("Created Successfully")
                 .build();
+    }
+
+    @GetMapping("/head-of-depts")
+    @PreAuthorize("hasAuthority('USER_VIEW')")
+    @Operation(summary = "Danh sách trưởng khoa - dùng cho dropdown tạo lớp học phần")
+    public ResponseEntity<List<UserResponse>> getHeadOfDepts() {
+        return ResponseEntity.ok(userService.getHeadOfDepts());
+    }
+
+    @GetMapping("/instructors")
+    @PreAuthorize("hasAuthority('USER_VIEW')")
+    @Operation(summary = "Danh sách giảng viên - dùng cho dropdown tạo lớp học phần")
+    public ResponseEntity<List<UserResponse>> getInstructors() {
+        return ResponseEntity.ok(userService.getInstructors());
     }
 }
