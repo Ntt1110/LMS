@@ -1,5 +1,6 @@
 package com.example.LMS.dto.response;
 
+import com.example.LMS.entity.model.StudentProfile;
 import com.example.LMS.entity.model.TeacherProfile;
 import com.example.LMS.entity.model.User;
 import com.example.LMS.entity.model.UserProfile;
@@ -35,7 +36,7 @@ public class UserResponse {
     // === Từ bảng roles (qua user_roles) ===
     private Set<String> roles; // ["ADMIN"], ["INSTRUCTOR"], ["STUDENT"], v.v.
 
-    // === Từ bảng teacher_profiles (chỉ có nếu là INSTRUCTOR) ===
+    // === Từ bảng teacher_profiles (chỉ có nếu là INSTRUCTOR / HEAD_OF_DEPT) ===
     private String employeeCode;
     private String academicTitle;
     private String specialization;
@@ -44,10 +45,22 @@ public class UserResponse {
     private Long departmentId;
     private String departmentName;
 
+    // === Từ bảng student_profiles (chỉ có nếu là STUDENT) ===
+    private String studentCode;
+    private Integer cohort;
+    private String studentStatus;   // STUDYING | RESERVED | SUSPENDED | GRADUATED | DROPPED_OUT
+    private Long majorId;
+    private String majorName;
+    private String majorCode;
+
     /**
-     * Map từ entity User (đã JOIN sẵn profile) sang DTO
+     * Map từ entity User sang DTO — hỗ trợ cả TeacherProfile lẫn StudentProfile.
+     * Gọi overload này khi đã có đủ cả 3 object (ví dụ: getUserById).
      */
-    public static UserResponse fromEntity(User user, UserProfile profile, TeacherProfile teacherProfile) {
+    public static UserResponse fromEntity(User user,
+                                          UserProfile profile,
+                                          TeacherProfile teacherProfile,
+                                          StudentProfile studentProfile) {
         UserResponseBuilder builder = UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -60,7 +73,7 @@ public class UserResponse {
                         .map(role -> role.getCode())
                         .collect(Collectors.toSet()));
 
-        // Profile có thể null nếu user chưa có profile (phòng thủ)
+        // Profile cơ bản (user_profiles)
         if (profile != null) {
             builder.fullName(profile.getFullName())
                     .phone(profile.getPhone())
@@ -69,6 +82,8 @@ public class UserResponse {
                     .avatarUrl(profile.getAvatarUrl())
                     .address(profile.getAddress());
         }
+
+        // Thông tin giảng viên (teacher_profiles)
         if (teacherProfile != null) {
             builder.employeeCode(teacherProfile.getEmployeeCode())
                     .academicTitle(teacherProfile.getAcademicTitle())
@@ -79,6 +94,30 @@ public class UserResponse {
                     .departmentName(teacherProfile.getDepartment().getName());
         }
 
+        // Thông tin sinh viên (student_profiles)
+        if (studentProfile != null) {
+            builder.studentCode(studentProfile.getStudentCode())
+                    .cohort(studentProfile.getCohort())
+                    .studentStatus(studentProfile.getStatus() != null
+                            ? studentProfile.getStatus().name() : null);
+            if (studentProfile.getMajor() != null) {
+                builder.majorId(studentProfile.getMajor().getId())
+                        .majorName(studentProfile.getMajor().getName())
+                        .majorCode(studentProfile.getMajor().getCode());
+            }
+        }
+
         return builder.build();
+    }
+
+    /**
+     * Overload tương thích ngược — dùng cho danh sách (list) khi chưa load StudentProfile.
+     * TeacherProfile đã có sẵn trong teacherProfileMap, StudentProfile truyền null.
+     */
+    public static UserResponse fromEntity(User user,
+                                          UserProfile profile,
+                                          TeacherProfile teacherProfile) {
+        // Lấy StudentProfile từ quan hệ lazy trên entity (đã JOIN sẵn hoặc null)
+        return fromEntity(user, profile, teacherProfile, user.getStudentProfile());
     }
 }

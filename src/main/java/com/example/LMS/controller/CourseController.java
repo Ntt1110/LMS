@@ -108,15 +108,24 @@ public class CourseController {
 // GET /api/v1/courses/approved
 // Danh sách môn học đã duyệt
 // ============================================================
+
     @GetMapping("/approved")
-    @PreAuthorize("hasAuthority('COURSE_VIEW')")
-    @Operation(summary = "Danh sách môn học đã duyệt (APPROVED)")
     public ResponseEntity<Page<CourseResponse>> getApprovedCourses(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long departmentId,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc")      String sortDirection
     ) {
-        return ResponseEntity.ok(courseService.getApprovedCourses(page, size, sortBy, sortDirection));
+        CourseListRequest request = new CourseListRequest();
+        request.setKeyword(keyword);
+        request.setDepartmentId(departmentId);
+        request.setStatus("APPROVED");   // cố định APPROVED
+        request.setPage(page);
+        request.setSize(size);
+        request.setSortBy(sortBy);
+        request.setSortDirection(sortDirection);
+        return ResponseEntity.ok(courseService.getCourses(request));
     }
 }
