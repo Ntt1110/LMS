@@ -87,36 +87,7 @@ public class CourseService {
         return CourseResponse.fromEntity(courseRepository.save(course));
     }
 
-    // ============================================================
-    // DANH SÁCH CHỜ DUYỆT (COURSE_APPROVE_LIST)
-    // ============================================================
-    public Page<CourseResponse> getPendingCourses(int page, int size) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        Specification<Course> spec = (root, query, cb) ->
-                cb.and(
-                        cb.equal(root.get("status"), Course.Status.PENDING),
-                        cb.isNull(root.get("deletedAt"))
-                );
-
-        return courseRepository.findAll(spec, pageable)
-                .map(CourseResponse::fromEntity);
-    }
-
-    public Page<CourseResponse> getRejectedCourses(int page, int size) {
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        Specification<Course> spec = (root, query, cb) ->
-                cb.and(
-                        cb.equal(root.get("status"), Course.Status.REJECTED),
-                        cb.isNull(root.get("deletedAt"))
-                );
-
-        return courseRepository.findAll(spec, pageable)
-                .map(CourseResponse::fromEntity);
-    }
     // ============================================================
     // DUYỆT MÔN HỌC (COURSE_APPROVE)
     // ============================================================
@@ -180,8 +151,14 @@ public class CourseService {
                 ));
             }
 
-            predicates.add(cb.equal(root.get("status"), Course.Status.APPROVED));
-
+            if (request.getStatus() != null && !request.getStatus().isBlank()) {
+                try {
+                    Course.Status status = Course.Status.valueOf(request.getStatus().toUpperCase());
+                    predicates.add(cb.equal(root.get("status"), status));
+                } catch (IllegalArgumentException ignored) {
+                    // status không hợp lệ thì bỏ qua
+                }
+            }
             if (request.getDepartmentId() != null) {
                 Join<Object, Object> deptJoin = root.join("department", JoinType.INNER);
                 predicates.add(cb.equal(deptJoin.get("id"), request.getDepartmentId()));

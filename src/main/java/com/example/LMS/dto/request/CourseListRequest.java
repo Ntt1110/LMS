@@ -11,6 +11,7 @@ public class CourseListRequest {
     //Tim kiem theo ten khoa hoc hoac ma khoa hoc
     private String keyword;
 
+    private String status;
 
     //Loc theo khoa
     private Long departmentId;
