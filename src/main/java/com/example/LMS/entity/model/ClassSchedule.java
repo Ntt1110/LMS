@@ -26,11 +26,14 @@ public class ClassSchedule {
     @JoinColumn(name = "class_id", nullable = false)
     private ClassEntity classEntity;
 
-    @Column(name = "room_id", nullable = false)
-    private Long roomId; // Link tới phòng học
+    // Thay vì dùng Long roomId thô:
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_id", nullable = false)
+    private Room room;
 
-    @Column(name = "shift_id", nullable = false)
-    private Long shiftId; // Link tới ca học (Ca 1, Ca 2...)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shift_id", nullable = false)
+    private Shift shift;// Link tới ca học (Ca 1, Ca 2...)
 
     @Column(name = "day_of_week", nullable = false)
     private Integer dayOfWeek; // Thứ trong tuần (Ví dụ: 2 = Thứ hai, 3 = Thứ ba...)
