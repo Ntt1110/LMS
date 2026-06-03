@@ -11,6 +11,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.example.LMS.dto.request.SemesterCreateRequest;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/v1/semesters")
@@ -53,5 +56,19 @@ public class SemesterController {
     @Operation(summary = "Chi tiết học kỳ")
     public ResponseEntity<SemesterResponse> getSemesterById(@PathVariable Long id) {
         return ResponseEntity.ok(semesterService.getSemesterById(id));
+    }
+
+    // ============================================================
+// POST /api/v1/semesters
+// Tạo học kỳ mới
+// ============================================================
+    @PostMapping
+    @PreAuthorize("hasAuthority('SEMESTER_CREATE')")
+    @Operation(summary = "Tạo học kỳ mới")
+    public ResponseEntity<SemesterResponse> createSemester(
+            @Valid @RequestBody SemesterCreateRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(semesterService.createSemester(request));
     }
 }

@@ -149,6 +149,21 @@ public class UserService {
         return UserResponse.fromEntity(user, profile, user.getTeacherProfile());
     }
 
+    // Danh sách trưởng khoa (cho dropdown tạo lớp học phần)
+    public List<UserResponse> getHeadOfDepts() {
+        return userRepository.findAllByRoleCode("HEAD_OF_DEPT")
+                .stream()
+                .map(u -> UserResponse.fromEntity(u, u.getProfile(), u.getTeacherProfile()))
+                .collect(Collectors.toList());
+    }
+
+    // Danh sách giảng viên (cho dropdown tạo lớp học phần)
+    public List<UserResponse> getInstructors() {
+        return userRepository.findAllByRoleCode("INSTRUCTOR")
+                .stream()
+                .map(u -> UserResponse.fromEntity(u, u.getProfile(), u.getTeacherProfile()))
+                .collect(Collectors.toList());
+    }
     // ============================================================
     // SPECIFICATION (dynamic filter cho danh sách)
     // ============================================================
