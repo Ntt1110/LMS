@@ -7,6 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "semesters")
@@ -50,6 +51,10 @@ public class Semester {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @OneToMany(mappedBy = "semester", cascade = CascadeType.ALL)
+    @ToString.Exclude
+    private List<ClassEntity> classes;
 
     public enum SemesterStatus {
         ACTIVE, CLOSED
