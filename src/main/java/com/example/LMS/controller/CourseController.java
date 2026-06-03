@@ -102,4 +102,21 @@ public class CourseController {
     public ResponseEntity<CourseResponse> rejectCourse(@Valid @RequestBody CourseRejectRequest request) {
         return ResponseEntity.ok(courseService.rejectCourse(request));
     }
+
+
+    // ============================================================
+// GET /api/v1/courses/approved
+// Danh sách môn học đã duyệt
+// ============================================================
+    @GetMapping("/approved")
+    @PreAuthorize("hasAuthority('COURSE_VIEW')")
+    @Operation(summary = "Danh sách môn học đã duyệt (APPROVED)")
+    public ResponseEntity<Page<CourseResponse>> getApprovedCourses(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc")      String sortDirection
+    ) {
+        return ResponseEntity.ok(courseService.getApprovedCourses(page, size, sortBy, sortDirection));
+    }
 }
