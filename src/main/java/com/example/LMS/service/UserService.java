@@ -101,7 +101,7 @@ public class UserService {
         Set<String> myRoles = currentUser.getRoles().stream()
                 .map(Role::getCode).collect(Collectors.toSet());
 
-        List<String> rolesToHide = new ArrayList<>();
+        Set<String> rolesToHide = new HashSet<>();
 
         if (myRoles.contains("PRINCIPAL")) {
             rolesToHide.add("ADMIN");
@@ -115,13 +115,16 @@ public class UserService {
             rolesToHide.add("PRINCIPAL");
             rolesToHide.add("HR");
         }
+        if (myRoles.contains("HEAD_OF_DEPT")) {
+            rolesToHide.addAll(List.of("ADMIN", "PRINCIPAL", "HR", "TRAINING_DEPT"));
+        }
         // ADMIN không cần ẩn role nào, chỉ ẩn bản thân
 
         List<Long> excludedIds = new ArrayList<>();
         excludedIds.add(currentUser.getId()); // luôn ẩn bản thân
 
         if (!rolesToHide.isEmpty()) {
-            excludedIds.addAll(userRepository.findUserIdsByRoleCodes(rolesToHide));
+            excludedIds.addAll(userRepository.findUserIdsByRoleCodes(new ArrayList<>(rolesToHide)));
         }
 
         return excludedIds;

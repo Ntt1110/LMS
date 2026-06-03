@@ -40,7 +40,8 @@ public class CourseController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc")      String sortDirection
+            @RequestParam(defaultValue = "desc")      String sortDirection,
+            @RequestParam(required = false) String status
     ) {
         CourseListRequest request = new CourseListRequest();
         request.setKeyword(keyword);
@@ -49,6 +50,7 @@ public class CourseController {
         request.setSize(size);
         request.setSortBy(sortBy);
         request.setSortDirection(sortDirection);
+        request.setStatus(status);
 
         return ResponseEntity.ok(courseService.getCourses(request));
     }
@@ -75,34 +77,6 @@ public class CourseController {
     public ResponseEntity<CourseResponse> proposeCourse(@Valid @RequestBody CourseProposalRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(courseService.proposeCourse(request));
-    }
-
-    // ============================================================
-    // GET /api/v1/courses/pending
-    // Danh sách môn học chờ duyệt
-    // ============================================================
-    @GetMapping("/pending")
-    @PreAuthorize("hasAuthority('COURSE_APPROVE_LIST')")
-    @Operation(summary = "Danh sách môn học chờ duyệt (PENDING)")
-    public ResponseEntity<Page<CourseResponse>> getPendingCourses(
-            @RequestParam(defaultValue = "0")  int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        return ResponseEntity.ok(courseService.getPendingCourses(page, size));
-    }
-
-    // ============================================================
-    // GET /api/v1/courses/rejected
-    // Danh sách môn học bị từ chối
-    // ============================================================
-    @GetMapping("/rejected")
-    @PreAuthorize("hasAuthority('COURSE_APPROVE_LIST')")
-    @Operation(summary = "Danh sách môn học bị từ chối (REJECTED)")
-    public ResponseEntity<Page<CourseResponse>> getRejectedCourses(
-            @RequestParam(defaultValue = "0")  int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        return ResponseEntity.ok(courseService.getRejectedCourses(page, size));
     }
 
     // ============================================================

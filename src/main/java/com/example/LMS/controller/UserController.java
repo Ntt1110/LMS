@@ -32,7 +32,7 @@ public class UserController {
     // Danh sách người dùng (filter + phân trang)
     // ============================================================
     @GetMapping
-    @PreAuthorize("hasAuthority('USER_VIEW')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PRINCIPAL', 'HR', 'TRAINING_DEPT', 'HEAD_OF_DEPT')")
     @Operation(
             summary = "Danh sách người dùng",
             description = """
@@ -74,7 +74,7 @@ public class UserController {
     // Xem chi tiết 1 người dùng
     // ============================================================
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('USER_VIEW')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PRINCIPAL', 'HR', 'TRAINING_DEPT', 'HEAD_OF_DEPT')")
     @Operation(
             summary = "Chi tiết người dùng",
             description = "Lấy đầy đủ thông tin 1 người dùng theo id, bao gồm cả thông tin profile."
