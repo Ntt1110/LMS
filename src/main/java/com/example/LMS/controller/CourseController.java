@@ -108,7 +108,8 @@ public class CourseController {
 // GET /api/v1/courses/approved
 // Danh sách môn học đã duyệt
 // ============================================================
-
+    @PreAuthorize("hasAuthority('COURSE_VIEW')")
+    @Operation(summary = "Danh sách môn học đã duyệt (APPROVED)", description = "Filter theo keyword (code/name), departmentId.")
     @GetMapping("/approved")
     public ResponseEntity<Page<CourseResponse>> getApprovedCourses(
             @RequestParam(required = false) String keyword,
