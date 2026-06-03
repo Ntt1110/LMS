@@ -40,20 +40,7 @@ public class CourseService {
         return courseRepository.findAll(spec, pageable)
                 .map(CourseResponse::fromEntity);
     }
-    // ============================================================
-// DANH SÁCH MÔN HỌC ĐÃ DUYỆT (APPROVED)
-// ============================================================
-    public Page<CourseResponse> getApprovedCourses(int page, int size, String sortBy, String sortDirection) {
 
-        Sort sort = sortDirection.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
-
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        return courseRepository.findByStatusAndDeletedAtIsNull(Course.Status.APPROVED, pageable)
-                .map(CourseResponse::fromEntity);
-    }
     // ============================================================
     // XEM CHI TIẾT MÔN HỌC
     // ============================================================

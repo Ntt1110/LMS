@@ -3,13 +3,9 @@ package com.example.LMS.service;
 import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.UserListRequest;
 import com.example.LMS.dto.response.UserResponse;
-import com.example.LMS.entity.model.Role;
-import com.example.LMS.entity.model.User;
-import com.example.LMS.entity.model.UserProfile;
+import com.example.LMS.entity.model.*;
 import com.example.LMS.exception.CustomException;
-import com.example.LMS.repository.RoleRepository;
-import com.example.LMS.repository.UserProfileRepository;
-import com.example.LMS.repository.UserRepository;
+import com.example.LMS.repository.*;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.example.LMS.entity.model.TeacherProfile;
-import com.example.LMS.repository.TeacherProfileRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Set;
@@ -40,6 +34,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
+    private final StudentProfileRepository studentProfileRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
@@ -145,8 +140,12 @@ public class UserService {
         // 2. Lấy profile (có thể null nếu chưa có)
         UserProfile profile = userProfileRepository.findByUserId(id).orElse(null);
 
-        // 3. Map sang DTO
-        return UserResponse.fromEntity(user, profile, user.getTeacherProfile());
+        // 3. Lấy teacher/student profile riêng (tránh LazyInitializationException)
+        TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(id).orElse(null);
+        StudentProfile studentProfile = studentProfileRepository.findByUserId(id).orElse(null);
+
+        // 4. Map sang DTO
+        return UserResponse.fromEntity(user, profile, teacherProfile, studentProfile);
     }
 
     // Danh sách trưởng khoa (cho dropdown tạo lớp học phần)
