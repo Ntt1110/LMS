@@ -20,6 +20,11 @@ import com.example.LMS.entity.model.Course;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import com.example.LMS.dto.response.CourseWithClassesResponse;
+import com.example.LMS.dto.request.ClassListRequest;
+import com.example.LMS.dto.response.ClassResponse;
+import com.example.LMS.entity.Enum.ClassStatus;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 
 
 import java.time.LocalDateTime;
@@ -350,4 +355,94 @@ public class ClassOpeningService {
                     .build();
         });
     }
+    // - Tìm kiếm theo mã lớp học phần hoặc tên môn học
+    //- Lọc theo học kỳ
+    //- Lọc theo trạng thái
+    //- Lọc theo khoa
+    //- Phân trang
+    public Page<ClassResponse> getClasses(ClassListRequest request) {
+
+        Sort sort = request.getSortDirection().equalsIgnoreCase("asc")
+                ? Sort.by(request.getSortBy()).ascending()
+                : Sort.by(request.getSortBy()).descending();
+
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), sort);
+
+        Specification<ClassEntity> spec = (root, query, cb) -> {
+            query.distinct(true);
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+
+            // Tìm kiếm theo mã lớp hoặc tên môn học
+            if (request.getKeyword() != null && !request.getKeyword().isBlank()) {
+                String pattern = "%" + request.getKeyword().trim().toLowerCase() + "%";
+                // Tìm courseId theo tên môn trước
+                List<Long> courseIds = courseRepository.findIdsByKeyword(request.getKeyword());
+                if (!courseIds.isEmpty()) {
+                    predicates.add(cb.or(
+                            cb.like(cb.lower(root.get("code")), pattern),
+                            root.get("courseId").in(courseIds)
+                    ));
+                } else {
+                    predicates.add(cb.like(cb.lower(root.get("code")), pattern));
+                }
+            }
+
+            // Lọc theo học kỳ
+            if (request.getSemesterId() != null) {
+                Join<Object, Object> semJoin = root.join("semester", JoinType.INNER);
+                predicates.add(cb.equal(semJoin.get("id"), request.getSemesterId()));
+            }
+
+            // Lọc theo trạng thái
+            if (request.getStatus() != null && !request.getStatus().isBlank()) {
+                try {
+                    ClassStatus status = ClassStatus.valueOf(request.getStatus().toUpperCase());
+                    predicates.add(cb.equal(root.get("status"), status));
+                } catch (IllegalArgumentException ignored) {}
+            }
+
+            // Lọc theo khoa
+            if (request.getDepartmentId() != null) {
+                List<Long> courseIds = courseRepository.findIdsByDepartmentId(request.getDepartmentId());
+                if (!courseIds.isEmpty()) {
+                    predicates.add(root.get("courseId").in(courseIds));
+                } else {
+                    predicates.add(cb.disjunction());
+                }
+            }
+
+            predicates.add(cb.isNull(root.get("deletedAt")));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return classRepository.findAll(spec, pageable).map(c -> {
+            String courseName = courseRepository.findNameById(c.getCourseId()).orElse("N/A");
+            String courseCode = courseRepository.findById(c.getCourseId())
+                    .map(course -> course.getCode()).orElse("N/A");
+            String managerName = userProfileRepository.findByUserId(c.getManagerId())
+                    .map(UserProfile::getFullName).orElse("N/A");
+            String lecturerName = c.getLecturerId() != null
+                    ? userProfileRepository.findByUserId(c.getLecturerId())
+                    .map(UserProfile::getFullName).orElse("Chưa phân công")
+                    : "Chưa phân công";
+
+            return ClassResponse.builder()
+                    .id(c.getId())
+                    .code(c.getCode())
+                    .status(c.getStatus() != null ? c.getStatus().name() : null)
+                    .maxStudents(c.getMaxStudents())
+                    .createdAt(c.getCreatedAt())
+                    .semesterId(c.getSemester().getId())
+                    .semesterCode(c.getSemester().getSemesterCode())
+                    .courseId(c.getCourseId())
+                    .courseName(courseName)
+                    .courseCode(courseCode)
+                    .managerId(c.getManagerId())
+                    .managerName(managerName)
+                    .lecturerId(c.getLecturerId())
+                    .lecturerName(lecturerName)
+                    .build();
+        });
+    }
+
 }
