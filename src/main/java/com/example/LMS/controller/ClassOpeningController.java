@@ -93,7 +93,8 @@ public class ClassOpeningController {
     }
 
     @PutMapping("/{requestId}/review")
-    @PreAuthorize("hasAuthority('CLASS_APPROVE') or hasAuthority('CLASS_REJECT')") // 🛡️ BẢO VỆ CHẶT CHẼ BẰNG QUYỀN 23 HOẶC 24
+    @PreAuthorize("hasAuthority('CLASS_APPROVE') or hasAuthority('CLASS_REJECT')")
+    // 🛡️ BẢO VỆ CHẶT CHẼ BẰNG QUYỀN 23 HOẶC 24
     @Operation(summary = "Phê duyệt hoặc Từ chối đơn đề xuất - Chốt dữ liệu từ Form xếp lịch")
     public ApiResponse<String> reviewRequest(
             @PathVariable Long requestId,
@@ -110,6 +111,7 @@ public class ClassOpeningController {
                 .data(reviewDto.getStatus().name())
                 .build();
     }
+
     @GetMapping("/classes/{classId}/dropdown/instructors")
     @PreAuthorize("hasAuthority('CLASS_VIEW')") // Quyền số 20
     @Operation(summary = "Lấy danh sách giảng viên thuộc khoa của môn học (Phục vụ Dropdown phân công)")
@@ -134,22 +136,25 @@ public class ClassOpeningController {
                 .code(200)
                 .message("Phân công giảng viên phụ trách lớp học phần thành công!")
                 .data("Assigned Successfully")
-
-    // Thêm endpoint phần xem danh sách môn học và lớp học cho Sinh viên
-    @GetMapping("/courses-with-classes")
-    @PreAuthorize("hasAuthority('COURSE_CLASS_VIEW')")
-    @Operation(summary = "Danh sách môn học kèm lớp học phần",
-            description = "Dành cho sinh viên xem để đăng ký học phần")
-    public ApiResponse<Page<CourseWithClassesResponse>> getCoursesWithClasses(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Long departmentId,
-            @RequestParam(defaultValue = "0")  int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        return ApiResponse.<Page<CourseWithClassesResponse>>builder()
-                .code(200)
-                .message("Tải danh sách môn học và lớp học thành công!")
-                .data(classOpeningService.getCoursesWithClasses(keyword, departmentId, page, size))
-                .build();
+                 .build();
     }
-}
+
+        // Thêm endpoint phần xem danh sách môn học và lớp học cho Sinh viên
+        @GetMapping("/courses-with-classes")
+        @PreAuthorize("hasAuthority('COURSE_CLASS_VIEW')")
+        @Operation(summary = "Danh sách môn học kèm lớp học phần",
+                description = "Dành cho sinh viên xem để đăng ký học phần")
+        public ApiResponse<Page<CourseWithClassesResponse>> getCoursesWithClasses (
+                @RequestParam(required = false) String keyword,
+                @RequestParam(required = false) Long departmentId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ){
+            return ApiResponse.<Page<CourseWithClassesResponse>>builder()
+                    .code(200)
+                    .message("Tải danh sách môn học và lớp học thành công!")
+                    .data(classOpeningService.getCoursesWithClasses(keyword, departmentId, page, size))
+                    .build();
+        }
+    }
+
