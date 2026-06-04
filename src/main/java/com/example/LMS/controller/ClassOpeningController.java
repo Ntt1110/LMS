@@ -1,6 +1,7 @@
 package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.ApproveClassRequestDto;
+import com.example.LMS.dto.request.AssignLecturerDto;
 import com.example.LMS.dto.request.ClassOpeningRequestDto;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.ClassOpeningResponseDto;
@@ -91,10 +92,10 @@ public class ClassOpeningController {
 
     @PutMapping("/{requestId}/review")
     @PreAuthorize("hasAuthority('CLASS_APPROVE') or hasAuthority('CLASS_REJECT')") // 🛡️ BẢO VỆ CHẶT CHẼ BẰNG QUYỀN 23 HOẶC 24
-    @io.swagger.v3.oas.annotations.Operation(summary = "Phê duyệt hoặc Từ chối đơn đề xuất - Chốt dữ liệu từ Form xếp lịch")
+    @Operation(summary = "Phê duyệt hoặc Từ chối đơn đề xuất - Chốt dữ liệu từ Form xếp lịch")
     public ApiResponse<String> reviewRequest(
             @PathVariable Long requestId,
-            @jakarta.validation.Valid @RequestBody ApproveClassRequestDto reviewDto) {
+            @Valid @RequestBody ApproveClassRequestDto reviewDto) {
 
         classOpeningService.reviewOpeningRequest(requestId, reviewDto);
 
@@ -105,6 +106,32 @@ public class ClassOpeningController {
                 .code(200)
                 .message(actionMessage)
                 .data(reviewDto.getStatus().name())
+                .build();
+    }
+    @GetMapping("/classes/{classId}/dropdown/instructors")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')") // Quyền số 20
+    @Operation(summary = "Lấy danh sách giảng viên thuộc khoa của môn học (Phục vụ Dropdown phân công)")
+    public ApiResponse<List<DropdownResponseDto>> getInstructors(@PathVariable Long classId) {
+        return ApiResponse.<List<DropdownResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách giảng viên trực thuộc khoa thành công!")
+                .data(classOpeningService.getInstructorsDropdown(classId))
+                .build();
+    }
+
+    @PutMapping("/classes/{classId}/assign-lecturer")
+    @PreAuthorize("hasAuthority('CLASS_ASSIGN_TEACHER')") // 🛡️ CHỐT CHẶN MÃ QUYỀN SỐ 17
+    @io.swagger.v3.oas.annotations.Operation(summary = "Phân công giảng viên phụ trách lớp học phần (Dành cho Trưởng khoa)")
+    public ApiResponse<String> assignLecturer(
+            @PathVariable Long classId,
+            @Valid @RequestBody AssignLecturerDto assignLecturerDto) {
+
+        classOpeningService.assignLecturerToClass(classId, assignLecturerDto);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Phân công giảng viên phụ trách lớp học phần thành công!")
+                .data("Assigned Successfully")
                 .build();
     }
 }

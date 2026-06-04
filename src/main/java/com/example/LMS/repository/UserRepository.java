@@ -36,4 +36,15 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             "JOIN u.roles r " +   // ✅ Chuẩn khít biến 'roles' trong User.java
             "WHERE r.code IN ('HEAD_OF_DEPT', 'INSTRUCTOR') AND u.isActive = true")
     List<DropdownResponseDto> findAllActiveLecturers();
+
+
+    @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(u.id, p.fullName) " +
+            "FROM User u " +
+            "JOIN u.profile p " +
+            "JOIN u.roles r " +
+            "JOIN u.teacherProfile tp " +
+            "WHERE r.code = 'INSTRUCTOR' " +
+            "AND u.isActive = true " +
+            "AND tp.department.id = (SELECT c.department.id FROM Course c WHERE c.id = (SELECT cl.courseId FROM ClassEntity cl WHERE cl.id = :classId))")
+    List<DropdownResponseDto> findInstructorsByClassDepartment(@Param("classId") Long classId);
 }
