@@ -15,6 +15,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.LMS.entity.model.Course;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
+import com.example.LMS.dto.response.CourseWithClassesResponse;
+
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -230,5 +235,64 @@ public class ClassOpeningService {
             classScheduleRepository.save(schedule);
             log.info("🟢 Phê duyệt thành công đơn ID: {}. Đã tạo lớp {} và ghim lịch học thành công!", requestId, autoClassCode);
         }
+    }
+
+    // phần xem danh sách môn học và lớp học cho Sinh viên
+    public Page<CourseWithClassesResponse> getCoursesWithClasses(
+            String keyword, Long departmentId, int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Specification<Course> spec = (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("code")), pattern),
+                        cb.like(cb.lower(root.get("name")), pattern)
+                ));
+            }
+            if (departmentId != null) {
+                predicates.add(cb.equal(root.get("department").get("id"), departmentId));
+            }
+            predicates.add(cb.equal(root.get("status"), Course.Status.APPROVED));
+            predicates.add(cb.isNull(root.get("deletedAt")));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return courseRepository.findAll(spec, pageable).map(course -> {
+
+            List<ClassEntity> classes = classRepository.findByCourseIdAndDeletedAtIsNull(course.getId());
+
+            List<CourseWithClassesResponse.ClassInfo> classSummaries = classes.stream().map(c -> {
+                String lecturerName = c.getLecturerId() != null
+                        ? userProfileRepository.findByUserId(c.getLecturerId())
+                        .map(UserProfile::getFullName).orElse("Chưa phân công")
+                        : "Chưa phân công";
+                int enrolled = classRepository.countEnrollmentsByClassId(c.getId());
+
+                return CourseWithClassesResponse.ClassInfo.builder()
+                        .classId(c.getId())
+                        .classCode(c.getCode())
+                        .status(c.getStatus() != null ? c.getStatus().name() : null)
+                        .maxStudents(c.getMaxStudents())
+                        .currentStudents(enrolled)
+                        .lecturerName(lecturerName)
+                        .semesterCode(c.getSemester().getSemesterCode())
+                        .build();
+            }).collect(toList());
+
+            return CourseWithClassesResponse.builder()
+                    .courseId(course.getId())
+                    .courseCode(course.getCode())
+                    .courseName(course.getName())
+                    .credits(course.getCredits())
+                    .theoreticalHours(course.getTheoreticalHours())
+                    .practicalHours(course.getPracticalHours())
+                    .departmentName(course.getDepartment().getName())
+                    .classes(classSummaries)
+                    .build();
+        });
     }
 }
