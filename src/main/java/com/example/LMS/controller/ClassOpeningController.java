@@ -13,6 +13,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.example.LMS.dto.response.CourseWithClassesResponse;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -132,6 +134,22 @@ public class ClassOpeningController {
                 .code(200)
                 .message("Phân công giảng viên phụ trách lớp học phần thành công!")
                 .data("Assigned Successfully")
+
+    // Thêm endpoint phần xem danh sách môn học và lớp học cho Sinh viên
+    @GetMapping("/courses-with-classes")
+    @PreAuthorize("hasAuthority('COURSE_CLASS_VIEW')")
+    @Operation(summary = "Danh sách môn học kèm lớp học phần",
+            description = "Dành cho sinh viên xem để đăng ký học phần")
+    public ApiResponse<Page<CourseWithClassesResponse>> getCoursesWithClasses(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ApiResponse.<Page<CourseWithClassesResponse>>builder()
+                .code(200)
+                .message("Tải danh sách môn học và lớp học thành công!")
+                .data(classOpeningService.getCoursesWithClasses(keyword, departmentId, page, size))
                 .build();
     }
 }
