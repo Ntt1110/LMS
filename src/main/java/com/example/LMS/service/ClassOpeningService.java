@@ -1,6 +1,7 @@
 package com.example.LMS.service;
 
 import com.example.LMS.dto.request.ApproveClassRequestDto;
+import com.example.LMS.dto.request.AssignLecturerDto;
 import com.example.LMS.dto.request.ClassOpeningRequestDto;
 import com.example.LMS.dto.response.ClassOpeningResponseDto;
 import com.example.LMS.dto.response.DropdownResponseDto;
@@ -235,6 +236,60 @@ public class ClassOpeningService {
             classScheduleRepository.save(schedule);
             log.info("🟢 Phê duyệt thành công đơn ID: {}. Đã tạo lớp {} và ghim lịch học thành công!", requestId, autoClassCode);
         }
+
+
+    }
+    // LẤY DANH SÁCH GIẢNG VIÊN ĐỘNG - CHỈ LẤY GIẢNG VIÊN THUỘC KHOA CỦA MÔN HỌC
+    public List<DropdownResponseDto> getInstructorsDropdown(Long classId) {
+        log.info("🔍 Trưởng khoa đang lấy danh sách giảng viên thuộc khoa để phân công cho lớp ID: {}", classId);
+
+        // Gọi câu Query lọc thông minh đã cấu hình ở bước 1
+        return userRepository.findInstructorsByClassDepartment(classId);
+    }
+
+    // 2. LOGIC XỬ LÝ: GÁN GIẢNG VIÊN VÀO LỚP HỌC PHẦN (CÓ CHECK TRÙNG LỊCH DẠY)
+    // =========================================================================
+    @Transactional
+    public void assignLecturerToClass(Long classId, AssignLecturerDto dto) {
+        log.info("⚡ Tiến hành phân công giảng viên ID: {} vào lớp học phần ID: {}", dto.getLecturerId(), classId);
+
+        // 1. Kiểm tra lớp học phần có tồn tại hay không
+        ClassEntity classEntity = classRepository.findById(classId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy lớp học phần yêu cầu!"));
+
+        // 2. Kiểm tra xem giảng viên được chọn có tồn tại và đúng Role INSTRUCTOR không
+        User instructor = userRepository.findById(dto.getLecturerId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Giảng viên được chọn không tồn tại!"));
+
+        boolean isInstructor = instructor.getRoles().stream().anyMatch(r -> r.getCode().equals("INSTRUCTOR"));
+        if (!isInstructor) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Tài khoản được chọn không phải là Giảng viên!");
+        }
+
+        // 3. 🛡️ CHỐT CHẶN NÂNG CAO: Kiểm tra trùng lịch dạy của Giảng viên (Tránh một thầy bị phân dạy 2 nơi cùng ca)
+        // Lấy lịch học (Thứ, Ca) hiện tại của lớp học phần này từ bảng class_schedules
+        var schedules = classEntity.getSchedules();
+        if (schedules != null && !schedules.isEmpty()) {
+            for (var schedule : schedules) {
+                // Đếm xem thầy giáo này vào Thứ đó, Ca đó có đang bị bận ở lớp nào khác đang ONGOING hoặc PENDING không
+                boolean isTeacherBusy = classScheduleRepository.existsByClassEntityLecturerIdAndDayOfWeekAndShiftId(
+                        dto.getLecturerId(), schedule.getDayOfWeek(), schedule.getShift().getId()
+                );
+                if (isTeacherBusy) {
+                    throw new CustomException(HttpStatus.BAD_REQUEST,
+                            "Giảng viên " + instructor.getProfile().getFullName() + " đã có lịch dạy lớp khác vào Thứ "
+                                    + schedule.getDayOfWeek() + " - " + schedule.getShift().getName() + "!");
+                }
+            }
+        }
+
+        // 4. Đạt điều kiện -> Tiến hành cập nhật lecturer_id vào bảng classes
+        classEntity.setLecturerId(dto.getLecturerId());
+        classEntity.setUpdatedAt(LocalDateTime.now());
+        classRepository.save(classEntity);
+
+        log.info("✅ Phân công thành công Giảng viên {} phụ trách lớp học phần {}",
+                instructor.getProfile().getFullName(), classEntity.getCode());
     }
 
     // phần xem danh sách môn học và lớp học cho Sinh viên
