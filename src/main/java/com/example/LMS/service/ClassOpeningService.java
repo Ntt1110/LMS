@@ -265,8 +265,9 @@ public class ClassOpeningService {
     }
     @Transactional
     public void generateClassesFromRequest(Long requestId, GenerateClassRequestDto dto) {
-        log.info("🔄 Bắt đầu quy trình khởi tạo loạt lớp thực tế từ đơn đề xuất ID: {}", requestId);
+        log.info("🔄 Ban hành khởi tạo loạt lớp từ mảng danh sách Frontend gửi về cho đơn ID: {}", requestId);
 
+        // 1. Kiểm tra đơn đề xuất có tồn tại và đã APPROVED chưa
         ClassOpeningRequest openingRequest = requestRepository.findById(requestId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đề xuất mở lớp!"));
 
@@ -274,74 +275,86 @@ public class ClassOpeningService {
             throw new CustomException(HttpStatus.BAD_REQUEST, "Đơn đề xuất này chưa được Phòng Đào tạo duyệt sang nhãn APPROVED!");
         }
 
-        // Kiểm tra sự tồn tại của Trưởng khoa được chọn
+        // 2. Kiểm tra tài khoản Trưởng khoa và chốt chặn quyền CLASS_CREATE
         User managerUser = userRepository.findById(dto.getManagerId())
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Tài khoản Trưởng khoa được chọn không tồn tại!"));
 
-        // 🛡️ CHỐT CHẶN BẢO MẬT: Kiểm tra xem tài khoản được gán có quyền CLASS_CREATE hay không
         boolean hasClassCreatePermission = managerUser.getRoles().stream()
                 .flatMap(role -> role.getPermissions().stream())
                 .anyMatch(permission -> "CLASS_CREATE".equals(permission.getCode()));
 
         if (!hasClassCreatePermission) {
-            log.warn("🚨 Khước từ khởi tạo lớp: Tài khoản ID [{}] không sở hữu quyền CLASS_CREATE!", dto.getManagerId());
             throw new CustomException(HttpStatus.BAD_REQUEST, "Không thể gán! Người quản lý được chọn không có quyền mở lớp (CLASS_CREATE).");
         }
 
-        // Kiểm tra xung đột ca/phòng học
-        boolean isRoomOccupied = classScheduleRepository.existsByRoomIdAndDayOfWeekAndShiftId(
-                dto.getRoomId(), dto.getDayOfWeek(), dto.getShiftId()
-        );
-        if (isRoomOccupied) {
-            throw new CustomException(HttpStatus.BAD_REQUEST, "Xung đột lịch học! Phòng học này vào thời gian chọn đã có lớp khác sử dụng.");
-        }
+        // 3. Kiểm tra Học kỳ và Môn học truyền từ Request xem có khớp hệ thống không
+        Semester semester = semesterRepository.findById(dto.getSemesterId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Học kỳ truyền lên không tồn tại!"));
 
-        String courseCode = courseRepository.findById(openingRequest.getCourseId())
-                .map(Course::getCode).orElse("MONHOC");
-        String semesterCode = openingRequest.getSemester().getSemesterCode();
-        Long semesterId = openingRequest.getSemester().getId();
+        Course course = courseRepository.findById(dto.getCourseId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Môn học truyền lên không tồn tại!"));
 
-        Room cleanRoom = roomRepository.findById(dto.getRoomId()).orElseThrow();
-        Shift cleanShift = shiftRepository.findById(dto.getShiftId()).orElseThrow();
+        String courseCode = course.getCode();
+        String semesterCode = semester.getSemesterCode();
 
-        int totalClassesToCreate = dto.getNumberOfClasses();
-        long currentClassCount = classRepository.countBySemesterIdAndCourseId(semesterId, openingRequest.getCourseId());
+        // 4. Lấy số lượng lớp hiện tại của môn này để tự động tăng tiến mã lớp (L01, L02...)
+        long currentClassCount = classRepository.countBySemesterIdAndCourseId(dto.getSemesterId(), dto.getCourseId());
 
-        // Vòng lặp sinh loạt lớp trống, giảng viên mặc định để null (Chuẩn phương án 1)
-        for (int i = 0; i < totalClassesToCreate; i++) {
+        // 5. 🔄 DUYỆT MẢNG DANH SÁCH LỚP HỌC DO FRONTEND GỬI VỀ
+        List<GenerateClassRequestDto.ClassConfigItem> classListFromFront = dto.getClasses();
+
+        for (int i = 0; i < classListFromFront.size(); i++) {
+            GenerateClassRequestDto.ClassConfigItem classConfig = classListFromFront.get(i);
+
+            // 🛡️ CHỐT CHẶN VÀNG: Kiểm tra trùng lịch phòng học riêng cho từng cấu hình lớp trong mảng
+            boolean isRoomOccupied = classScheduleRepository.existsByRoomIdAndDayOfWeekAndShiftId(
+                    classConfig.getRoomId(), classConfig.getDayOfWeek(), classConfig.getShiftId()
+            );
+            if (isRoomOccupied) {
+                throw new CustomException(HttpStatus.BAD_REQUEST, "Xung đột lịch học! Tại lớp thứ " + (i + 1) +
+                        ", phòng học vào thời gian cấu hình đã có lớp khác sử dụng.");
+            }
+
+            // Tự động sinh mã lớp tăng dần (Ví dụ: CNTT-HK1-L01, CNTT-HK1-L02)
             String autoClassCode = String.format("%s-%s-L%02d", courseCode, semesterCode, currentClassCount + 1 + i);
 
+            // Khởi tạo thực thể lớp vật lý
             ClassEntity officialClass = ClassEntity.builder()
-                    .semester(openingRequest.getSemester())
-                    .courseId(openingRequest.getCourseId())
-                    .managerId(dto.getManagerId())
-                    .lecturerId(null)
+                    .semester(semester)
+                    .courseId(course.getId())
                     .code(autoClassCode)
-                    .maxStudents(openingRequest.getExpectedStudents())
+                    .maxStudents(classConfig.getMaxStudents()) // Sĩ số riêng của từng lớp từ mảng
                     .status(ClassStatus.PENDING)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
+
+                    // 🎯 GÁN NGƯỜI QUẢN LÝ CHUNG CHO TẤT CẢ CÁC LỚP TRONG MẢNG
+                    .managerId(dto.getManagerId())
+                    .lecturerId(null) // Giảng viên để trống chờ phân công sau
                     .build();
 
             ClassEntity savedClass = classRepository.save(officialClass);
 
-            // X xếp Thời khóa biểu ban đầu dính chặt vào lớp đầu tiên (L01)
-            if (i == 0) {
-                ClassSchedule schedule = ClassSchedule.builder()
-                        .classEntity(savedClass)
-                        .room(cleanRoom)
-                        .shift(cleanShift)
-                        .dayOfWeek(dto.getDayOfWeek())
-                        .createdAt(LocalDateTime.now())
-                        .updatedAt(LocalDateTime.now())
-                        .build();
-                classScheduleRepository.save(schedule);
-                log.info("📌 Ghim TKB lớp đầu tiên thành công: {}", autoClassCode);
-            } else {
-                log.info("📌 Khởi tạo thành công lớp bổ sung trống: {}", autoClassCode);
-            }
+            // Bốc dữ liệu phòng và ca từ DB ra để ghim vào bảng Thời khóa biểu (class_schedules)
+            Room cleanRoom = roomRepository.findById(classConfig.getRoomId())
+                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Phòng học không tồn tại!"));
+            Shift cleanShift = shiftRepository.findById(classConfig.getShiftId())
+                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Ca học không tồn tại!"));
+
+            // Ghim lịch học chi tiết cho TỪNG lớp tương ứng trong mảng danh sách
+            ClassSchedule schedule = ClassSchedule.builder()
+                    .classEntity(savedClass)
+                    .room(cleanRoom)
+                    .shift(cleanShift)
+                    .dayOfWeek(classConfig.getDayOfWeek())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            classScheduleRepository.save(schedule);
+            log.info("📌 Khởi tạo thành công lớp {} kèm ghim Thời khóa biểu phòng/ca riêng biệt.", autoClassCode);
         }
-        log.info("✅ Quy trình hoàn tất! Tổng số lớp trống đã tạo: {}", totalClassesToCreate);
+        log.info("✅ Quy trình hoàn tất! Đã khởi tạo thành công đồng loạt {} lớp học phần.", classListFromFront.size());
     }
 
     public List<DropdownResponseDto> getInstructorsDropdown(Long classId) {
