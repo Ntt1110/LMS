@@ -23,19 +23,16 @@ public class DepartmentController {
 
     // ============================================================
     // GET /api/v1/departments
-    // Danh sách khoa (dùng cho dropdown filter, không phân trang)
+    // Danh sách khoa (dùng cho dropdown)
     // ============================================================
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','PRINCIPAL','TRAINING_DEPT','HR')")
     @Operation(
             summary = "Danh sách khoa",
-            description = "Lấy danh sách tất cả khoa. Filter theo keyword (code/name), isActive."
+            description = "Lấy danh sách tất cả khoa dùng cho dropdown."
     )
-    public ResponseEntity<List<DepartmentResponse>> getDepartments(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Boolean isActive
-    ) {
-        return ResponseEntity.ok(departmentService.getDepartments(keyword, isActive));
+    public ResponseEntity<List<DepartmentResponse>> getDepartments() {
+        return ResponseEntity.ok(departmentService.getDepartments());
     }
 
     // ============================================================
