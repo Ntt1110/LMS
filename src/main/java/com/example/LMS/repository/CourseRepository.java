@@ -1,5 +1,6 @@
 package com.example.LMS.repository;
 
+import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.entity.model.Course;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,4 +31,8 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
 
     @Query("SELECT c.name FROM Course c WHERE c.id = :courseId")
     Optional<String> findNameById(@Param("courseId") Long courseId);
+
+    @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(c.id, CONCAT(c.code, ' - ', c.name)) " +
+            "FROM Course c")
+    List<DropdownResponseDto> findAllCoursesDropdown();
 }

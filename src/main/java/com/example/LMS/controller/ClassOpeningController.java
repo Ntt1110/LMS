@@ -37,6 +37,27 @@ public class ClassOpeningController {
                 .data("Submitted Successfully")
                 .build();
     }
+    @GetMapping("/dropdown/courses")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')") // 🛡️ Cho phép các bên xem dữ liệu để chọn làm đơn
+    @io.swagger.v3.oas.annotations.Operation(summary = "Lấy danh sách Môn học (Dành cho Dropdown Form đề xuất)")
+    public ApiResponse<List<DropdownResponseDto>> getCoursesForProposal() {
+        return ApiResponse.<List<DropdownResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách môn học thành công!")
+                .data(classOpeningService.getCoursesDropdown())
+                .build();
+    }
+
+    @GetMapping("/dropdown/majors")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Lấy danh sách Ngành học (Dành cho Dropdown Form đề xuất)")
+    public ApiResponse<List<DropdownResponseDto>> getMajorsForProposal() {
+        return ApiResponse.<List<DropdownResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách ngành học thành công!")
+                .data(classOpeningService.getMajorsDropdown())
+                .build();
+    }
 
     @GetMapping("/pending")
     @PreAuthorize("hasAuthority('CLASS_PROPOSE_VIEW')") // 🛡️ CHỐT CHẶN MÃ QUYỀN SỐ 22 CHI TIẾT CỦA TRUNG!

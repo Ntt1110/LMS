@@ -49,6 +49,9 @@ public class ClassOpeningService {
      private final ClassEntityRepository classRepository;
      private final ClassScheduleRepository classScheduleRepository;
 
+
+     private final MajorRepository majorRepository;
+
     @Transactional
     public void createOpeningRequest(ClassOpeningRequestDto dto) {
         log.info("⏳ Tháo chốt kiểm tra đề xuất mở lớp học phần mới...");
@@ -80,6 +83,16 @@ public class ClassOpeningService {
 
         requestRepository.save(openingRequest);
         log.info("✅ Giảng viên {} đã gửi đề xuất mở lớp thành công, chờ Phòng Đào tạo duyệt.", currentUsername);
+    }
+
+    public List<DropdownResponseDto> getCoursesDropdown() {
+        log.info("🔍 Đang tải danh sách Môn học phục vụ đề xuất lớp...");
+        return courseRepository.findAllCoursesDropdown();
+    }
+
+    public List<DropdownResponseDto> getMajorsDropdown() {
+        log.info("🔍 Đang tải danh sách Ngành học phục vụ đề xuất lớp...");
+        return majorRepository.findAllMajorsDropdown();
     }
 
     public List<ClassOpeningResponseDto> getPendingOpeningRequests() {
