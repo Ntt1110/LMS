@@ -2,6 +2,7 @@ package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.SemesterCreateRequest;
 import com.example.LMS.dto.request.SemesterListRequest;
+import com.example.LMS.dto.response.SemesterDetailResponse;
 import com.example.LMS.dto.response.SemesterResponse;
 import com.example.LMS.service.SemesterService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +37,7 @@ public class SemesterController {
             summary = "Danh sách học kỳ",
             description = "Filter theo keyword, status (ACTIVE/CLOSED), academicYear. Hỗ trợ phân trang và sắp xếp."
     )
-    public ResponseEntity<Page<SemesterResponse>> getSemesters(
+    public ResponseEntity<Page<SemesterDetailResponse>> getSemesters(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String academicYear,
