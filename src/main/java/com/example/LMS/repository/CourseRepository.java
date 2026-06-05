@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -20,6 +21,12 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     // Kiểm tra mã môn học đã tồn tại chưa (dùng khi đề xuất môn mới)
     boolean existsByCode(String code);
     Page<Course> findByStatusAndDeletedAtIsNull(Course.Status status, Pageable pageable);
+
+    @Query("SELECT c.id FROM Course c WHERE c.department.id = :departmentId AND c.deletedAt IS NULL")
+    List<Long> findIdsByDepartmentId(@Param("departmentId") Long departmentId);
+
+    @Query("SELECT c.id FROM Course c WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) AND c.deletedAt IS NULL")
+    List<Long> findIdsByKeyword(@Param("keyword") String keyword);
 
     @Query("SELECT c.name FROM Course c WHERE c.id = :courseId")
     Optional<String> findNameById(@Param("courseId") Long courseId);
