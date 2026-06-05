@@ -32,7 +32,15 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     @Query("SELECT c.name FROM Course c WHERE c.id = :courseId")
     Optional<String> findNameById(@Param("courseId") Long courseId);
 
+
+    // 1. Hàm bốc toàn bộ môn học phục vụ dropdown chung (Đã sửa full package name)
     @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(c.id, CONCAT(c.code, ' - ', c.name)) " +
             "FROM Course c")
     List<DropdownResponseDto> findAllCoursesDropdown();
+
+    // 2. Hàm lọc thông minh: Chỉ lấy môn học thuộc Khoa mà Trưởng khoa quản lý (Khớp 100% với Course.java)
+    @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(c.id, CONCAT(c.code, ' - ', c.name)) " +
+            "FROM Course c " +
+            "WHERE c.department.id = :departmentId")
+    List<DropdownResponseDto> findCoursesByDepartmentId(@Param("departmentId") Long departmentId);
 }

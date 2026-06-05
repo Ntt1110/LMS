@@ -25,6 +25,7 @@ import jakarta.persistence.criteria.JoinType;
 
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
@@ -45,6 +46,8 @@ public class ClassOpeningService {
 
      private final ClassEntityRepository classRepository;
      private final ClassScheduleRepository classScheduleRepository;
+
+     private final DepartmentRepository departmentRepository;
 
 
      private final MajorRepository majorRepository;
@@ -82,9 +85,21 @@ public class ClassOpeningService {
         log.info("✅ Giảng viên {} đã gửi đề xuất mở lớp thành công, chờ Phòng Đào tạo duyệt.", currentUsername);
     }
 
-    public List<DropdownResponseDto> getCoursesDropdown() {
-        log.info("🔍 Đang tải danh sách Môn học phục vụ đề xuất lớp...");
-        return courseRepository.findAllCoursesDropdown();
+    public List<DropdownResponseDto> getCoursesDropdownForDean(String username) {
+        log.info("🔍 Trưởng khoa username [{}] đang yêu cầu tải danh sách Môn học thuộc khoa quản lý...", username);
+
+        // 1. Tìm thực thể User từ username để lấy id của Trưởng khoa
+        User deanUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản Trưởng khoa hợp lệ!"));
+
+        Long deanUserId = deanUser.getId();
+
+        // 2. Tìm ID Khoa (Department) mà thầy này đang gán làm Quản lý (manager)
+        Long managedDepartmentId = departmentRepository.findIdByManagerId(deanUserId)
+                .orElseThrow(() -> new CustomException(HttpStatus.BAD_REQUEST, "Tài khoản này chưa được phân quyền quản lý Khoa nào!"));
+
+        // 3. Gọi câu lệnh JPQL sạch sẽ ở Bước 1 để hốt toàn bộ môn học thuộc khoa đó
+        return courseRepository.findCoursesByDepartmentId(managedDepartmentId);
     }
 
     public List<DropdownResponseDto> getMajorsDropdown() {
