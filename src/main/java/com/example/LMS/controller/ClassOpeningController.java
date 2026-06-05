@@ -174,9 +174,12 @@ public class ClassOpeningController {
 
         classOpeningService.generateClassesFromRequest(requestId, generateDto);
 
+        // 🌟 SỬA CHÍNH XÁC DÒNG NÀY: Thay generateDto.getNumberOfClasses() bằng generateDto.getClasses().size()
+        int totalClassesCreated = (generateDto.getClasses() != null) ? generateDto.getClasses().size() : 0;
+
         return ApiResponse.<String>builder()
                 .code(200)
-                .message("Hệ thống đã tự động sinh khởi tạo thành công " + generateDto.getNumberOfClasses() + " lớp học phần trống!")
+                .message("Hệ thống đã tự động sinh khởi tạo thành công " + totalClassesCreated + " lớp học phần trống!")
                 .data("CLASSES_GENERATED_SUCCESSFULLY")
                 .build();
     }
