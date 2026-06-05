@@ -19,5 +19,17 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
     @Query("SELECT COUNT(e) FROM ClassEnrollment e WHERE e.classEntity.id = :classId")
     int countEnrollmentsByClassId(@Param("classId") Long classId);
 
+    // Lấy danh sách học phần PENDING theo học kỳ và khoa
+    @Query("SELECT c FROM ClassEntity c " +
+            "JOIN Course co ON co.id = c.courseId " +
+            "WHERE c.semester.id = :semesterId " +
+            "AND co.department.id = :departmentId " +
+            "AND c.status = com.example.LMS.entity.Enum.ClassStatus.PENDING " +
+            "AND c.deletedAt IS NULL")
+    List<ClassEntity> findPendingBySemesterAndDepartment(
+            @Param("semesterId") Long semesterId,
+            @Param("departmentId") Long departmentId
+    );
+
     List<ClassEntity> findBySemesterIdAndStatus(Long semesterId, ClassStatus status);
 }
