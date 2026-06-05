@@ -3,13 +3,14 @@ package com.example.LMS.repository;
 import com.example.LMS.entity.Enum.RegistrationStatus;
 import com.example.LMS.entity.model.RegistrationPeriod;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface RegistrationPeriodRepository extends JpaRepository<RegistrationPeriod, Long> {
+public interface RegistrationPeriodRepository extends JpaRepository<RegistrationPeriod, Long>, JpaSpecificationExecutor<RegistrationPeriod> {
 
     //  Tìm các đợt PENDING đã đến giờ mở cổng
     List<RegistrationPeriod> findByStatusAndStartTimeBefore(
