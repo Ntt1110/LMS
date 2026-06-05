@@ -32,4 +32,6 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
     );
 
     List<ClassEntity> findBySemesterIdAndStatus(Long semesterId, ClassStatus status);
+
+    List<ClassEntity> findByRegistrationPeriodIdAndStatus(Long registrationPeriodId, ClassStatus status);
 }
