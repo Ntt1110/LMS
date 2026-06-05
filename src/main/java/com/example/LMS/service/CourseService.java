@@ -17,6 +17,8 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.persistence.criteria.JoinType;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +41,41 @@ public class CourseService {
 
         return courseRepository.findAll(spec, pageable)
                 .map(CourseResponse::fromEntity);
+    }
+
+    // ============================================================
+// DANH SÁCH MÔN HỌC THEO TRƯỞNG KHOA (đang login)
+// ============================================================
+    public Page<CourseResponse> getCoursesByHeadOfDept(int page, int size, String sortBy, String sortDirection) {
+
+        // Lấy user đang login
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        Sort sort = sortDirection.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // JOIN: courses -> departments -> manager (user đang login)
+        Specification<Course> spec = (root, query, cb) -> {
+            query.distinct(true);
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+
+            // JOIN courses -> departments
+            var deptJoin = root.join("department", JoinType.INNER);
+
+            // departments.manager.username = username đang login
+            predicates.add(cb.equal(deptJoin.get("manager").get("username"), username));
+
+            // Chỉ lấy APPROVED
+            predicates.add(cb.equal(root.get("status"), Course.Status.APPROVED));
+            predicates.add(cb.isNull(root.get("deletedAt")));
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return courseRepository.findAll(spec, pageable).map(CourseResponse::fromEntity);
     }
 
     // ============================================================

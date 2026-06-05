@@ -129,4 +129,20 @@ public class CourseController {
         request.setSortDirection(sortDirection);
         return ResponseEntity.ok(courseService.getCourses(request));
     }
+
+    // ============================================================
+// GET /api/v1/courses/my-department
+// Danh sách môn học thuộc khoa của trưởng khoa đang login
+// ============================================================
+    @GetMapping("/my-department")
+    @PreAuthorize("hasAuthority('COURSE_VIEW')")
+    @Operation(summary = "Danh sách môn học theo khoa của trưởng khoa đang login")
+    public ResponseEntity<Page<CourseResponse>> getCoursesByHeadOfDept(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc")      String sortDirection
+    ) {
+        return ResponseEntity.ok(courseService.getCoursesByHeadOfDept(page, size, sortBy, sortDirection));
+    }
 }
