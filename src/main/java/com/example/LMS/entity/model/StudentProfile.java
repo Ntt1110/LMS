@@ -48,6 +48,11 @@ public class StudentProfile {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // FK -> users.id (giảng viên cố vấn, có thể null)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "advisor_id")
+    private User advisor;
+
     // Đúng với DB: enum('STUDYING','RESERVED','SUSPENDED','GRADUATED','DROPPED_OUT')
     public enum Status {
         STUDYING, RESERVED, SUSPENDED, GRADUATED, DROPPED_OUT
