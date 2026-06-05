@@ -19,4 +19,6 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     // Lấy nhiều profile cùng lúc theo danh sách userId (tránh N+1 query)
     @Query("SELECT up FROM UserProfile up WHERE up.user.id IN :userIds")
     List<UserProfile> findAllByUserIdIn(@Param("userIds") List<Long> userIds);
+
+
 }

@@ -13,7 +13,10 @@ import com.example.LMS.service.ClassOpeningService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.example.LMS.dto.response.CourseWithClassesResponse;
 import org.springframework.data.domain.Page;
@@ -23,6 +26,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/class-requests")
 @RequiredArgsConstructor
+@Slf4j
 public class ClassOpeningController {
 
     private final ClassOpeningService classOpeningService;
@@ -39,14 +43,19 @@ public class ClassOpeningController {
                 .data("Submitted Successfully")
                 .build();
     }
-    @GetMapping("/dropdown/courses")
-    @PreAuthorize("hasAuthority('CLASS_VIEW')") // 🛡️ Cho phép các bên xem dữ liệu để chọn làm đơn
-    @io.swagger.v3.oas.annotations.Operation(summary = "Lấy danh sách Môn học (Dành cho Dropdown Form đề xuất)")
-    public ApiResponse<List<DropdownResponseDto>> getCoursesForProposal() {
+    @GetMapping("/dropdown/dean-courses")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')") // Quyền số 20
+    @Operation(summary = "Lấy danh sách Môn học thuộc Khoa/Ngành của Trưởng khoa đang đăng nhập")
+    public ApiResponse<List<DropdownResponseDto>> getCoursesForDeanProposal(
+            Authentication authentication // 🛡️ Bốc trực tiếp hệ thống chứng thực lõi của Spring Security
+    ) {
+        // Lấy username (Mã số hoặc Email giảng viên đăng nhập găm trong Token)
+        String currentUsername = authentication.getName();
+
         return ApiResponse.<List<DropdownResponseDto>>builder()
                 .code(200)
-                .message("Tải danh sách môn học thành công!")
-                .data(classOpeningService.getCoursesDropdown())
+                .message("Tải danh sách môn học thuộc khoa quản lý thành công!")
+                .data(classOpeningService.getCoursesDropdownForDean(currentUsername)) // Đẩy sang Service xử lý
                 .build();
     }
 

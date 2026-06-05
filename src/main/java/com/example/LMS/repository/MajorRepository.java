@@ -5,6 +5,7 @@ import com.example.LMS.entity.model.Major;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -20,4 +21,6 @@ public interface MajorRepository extends JpaRepository<Major, Long>, JpaSpecific
     @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(m.id, m.name) " +
             "FROM Major m")
     List<DropdownResponseDto> findAllMajorsDropdown();
+
+
 }
