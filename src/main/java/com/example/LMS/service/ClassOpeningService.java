@@ -1,8 +1,6 @@
 package com.example.LMS.service;
 
-import com.example.LMS.dto.request.ApproveClassRequestDto;
-import com.example.LMS.dto.request.AssignLecturerDto;
-import com.example.LMS.dto.request.ClassOpeningRequestDto;
+import com.example.LMS.dto.request.*;
 import com.example.LMS.dto.response.ClassOpeningResponseDto;
 import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.entity.Enum.ClassOpenningStatus;
@@ -20,7 +18,6 @@ import com.example.LMS.entity.model.Course;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import com.example.LMS.dto.response.CourseWithClassesResponse;
-import com.example.LMS.dto.request.ClassListRequest;
 import com.example.LMS.dto.response.ClassResponse;
 import com.example.LMS.entity.Enum.ClassStatus;
 import jakarta.persistence.criteria.Join;
@@ -95,6 +92,51 @@ public class ClassOpeningService {
         return majorRepository.findAllMajorsDropdown();
     }
 
+    public Page<ClassOpeningResponseDto> getPagingRequests(RequestFilterDto filter) {
+        int pageIndex = filter.getPage() > 0 ? filter.getPage() - 1 : 0;
+        Pageable pageable = PageRequest.of(pageIndex, filter.getSize());
+
+        Page<ClassOpeningRequest> entityPage = requestRepository.findAll(
+                ClassOpeningSpecification.filterRequests(filter), pageable
+        );
+
+        return entityPage.map(entity -> {
+            // 1. Map các trường có sẵn từ Entity sang DTO
+            ClassOpeningResponseDto.ClassOpeningResponseDtoBuilder builder = ClassOpeningResponseDto.builder()
+                    .requestId(entity.getId())
+                    .expectedStudents(entity.getExpectedStudents())
+                    .note(entity.getNote())
+                    .status(entity.getStatus())
+                    .createdAt(entity.getCreatedAt());
+
+            // 2. Xử lý Học kỳ (Giả định trường này ông map đối tượng Semester thành công)
+            if (entity.getSemester() != null) {
+                builder.semesterCode(entity.getSemester().getSemesterCode());
+            }
+
+            // 3. 🌟 XỬ LÝ MÔN HỌC (Lấy tên từ CourseRepository thông qua ID thô)
+            // Hãy thay "getCourseId()" bằng đúng tên biến kiểu Long chứa ID môn học trong Entity của ông
+            if (entity.getCourseId() != null) {
+                Long cId = entity.getCourseId();
+                builder.courseId(cId);
+
+                // Tìm tên môn học dưới DB đắp vào DTO
+                courseRepository.findById(cId).ifPresent(course -> builder.courseName(course.getName()));
+            }
+
+            // 4. 🌟 XỬ LÝ NGƯỜI ĐỀ XUẤT (Lấy tên thông qua ID thô)
+            // Hãy thay "getRequesterId()" bằng đúng tên biến kiểu Long chứa ID người tạo trong Entity của ông
+            if (entity.getRequesterId() != null) {
+                Long rId = entity.getRequesterId();
+                builder.requesterId(rId);
+
+                // Tìm hồ sơ người dùng để hốt họ tên (fullName) đắp vào DTO
+                userProfileRepository.findById(rId).ifPresent(profile -> builder.requesterName(profile.getFullName()));
+            }
+
+            return builder.build();
+        });
+    }
     public List<ClassOpeningResponseDto> getPendingOpeningRequests() {
         log.info("🔍 Phòng Đào tạo đang truy vấn danh sách lớp học phần chờ duyệt...");
 

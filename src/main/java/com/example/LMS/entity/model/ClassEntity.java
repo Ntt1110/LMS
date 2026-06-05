@@ -1,6 +1,7 @@
 package com.example.LMS.entity.model;
 
 import com.example.LMS.entity.Enum.ClassStatus;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +26,7 @@ public class ClassEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "semester_id", nullable = false)
+    @JsonManagedReference
     private Semester semester;
 
     @Column(name = "registration_period_id")
