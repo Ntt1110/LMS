@@ -12,6 +12,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.LMS.dto.response.SemesterDetailResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,8 +26,8 @@ public class SemesterService {
     // ============================================================
     // DANH SÁCH HỌC KỲ có filter + phân trang
     // ============================================================
-    public Page<SemesterResponse> getSemesters(SemesterListRequest request) {
-
+    // Đổi method có phân trang trả về SemesterDetailResponse
+    public Page<SemesterDetailResponse> getSemesters(SemesterListRequest request) {
         Sort sort = request.getSortDirection().equalsIgnoreCase("asc")
                 ? Sort.by(request.getSortBy()).ascending()
                 : Sort.by(request.getSortBy()).descending();
@@ -35,7 +36,7 @@ public class SemesterService {
         Specification<Semester> spec = buildSpecification(request);
 
         return semesterRepository.findAll(spec, pageable)
-                .map(SemesterResponse::fromEntity);
+                .map(SemesterDetailResponse::fromEntity); // <-- đổi ở đây
     }
 
     // ============================================================
