@@ -52,6 +52,8 @@ public class UserResponse {
     private Long majorId;
     private String majorName;
     private String majorCode;
+    private Long advisorId;
+    private String advisorName;
 
     /**
      * Map từ entity User sang DTO — hỗ trợ cả TeacherProfile lẫn StudentProfile.
@@ -103,10 +105,14 @@ public class UserResponse {
             if (studentProfile.getMajor() != null) {
                 builder.majorId(studentProfile.getMajor().getId())
                         .majorName(studentProfile.getMajor().getName())
-                        .majorCode(studentProfile.getMajor().getCode());
+                        .majorCode(studentProfile.getMajor().getCode())
+                        .advisorId(studentProfile.getAdvisor() != null
+                                ? studentProfile.getAdvisor().getId() : null)
+                        .advisorName(studentProfile.getAdvisor() != null
+                                && studentProfile.getAdvisor().getProfile() != null
+                                ? studentProfile.getAdvisor().getProfile().getFullName() : null);
             }
         }
-
         return builder.build();
     }
 
@@ -115,7 +121,7 @@ public class UserResponse {
      * TeacherProfile đã có sẵn trong teacherProfileMap, StudentProfile truyền null.
      */
     public static UserResponse fromEntity(User user,
-                                          UserProfile profile,
+                                           UserProfile profile,
                                           TeacherProfile teacherProfile) {
         // Lấy StudentProfile từ quan hệ lazy trên entity (đã JOIN sẵn hoặc null)
         return fromEntity(user, profile, teacherProfile, user.getStudentProfile());
