@@ -3,10 +3,12 @@ package com.example.LMS.controller;
 import com.example.LMS.dto.request.ApproveClassRequestDto;
 import com.example.LMS.dto.request.AssignLecturerDto;
 import com.example.LMS.dto.request.ClassOpeningRequestDto;
+import com.example.LMS.dto.request.RequestFilterDto;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.ClassOpeningResponseDto;
 import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.entity.Enum.ClassOpenningStatus;
+import com.example.LMS.entity.model.ClassOpeningRequest;
 import com.example.LMS.service.ClassOpeningService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -56,6 +58,20 @@ public class ClassOpeningController {
                 .code(200)
                 .message("Tải danh sách ngành học thành công!")
                 .data(classOpeningService.getMajorsDropdown())
+                .build();
+    }
+
+    @GetMapping("/pending-list")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')")
+    public ApiResponse<Page<ClassOpeningResponseDto>> getPendingRequests(RequestFilterDto filterDto) {
+
+        // 🌟 Biến pagingData hứng dữ liệu lúc này phải mang kiểu DTO phẳng sạch sẽ
+        Page<ClassOpeningResponseDto> pagingData = classOpeningService.getPagingRequests(filterDto);
+
+        return ApiResponse.<Page<ClassOpeningResponseDto>>builder()
+                .code(200)
+                .message("Tải danh sách đơn đề xuất mở lớp thành công!")
+                .data(pagingData)
                 .build();
     }
 

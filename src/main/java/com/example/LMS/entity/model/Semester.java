@@ -1,5 +1,6 @@
 package com.example.LMS.entity.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -54,6 +55,7 @@ public class Semester {
 
     @OneToMany(mappedBy = "semester", cascade = CascadeType.ALL)
     @ToString.Exclude
+    @JsonManagedReference
     private List<ClassEntity> classes;
 
     public enum SemesterStatus {
