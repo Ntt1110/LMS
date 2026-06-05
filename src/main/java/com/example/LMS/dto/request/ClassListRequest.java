@@ -14,4 +14,6 @@ public class ClassListRequest {
     private int size = 10;
     private String sortBy = "createdAt";
     private String sortDirection = "desc";
+
+    private Long managerId;
 }   
