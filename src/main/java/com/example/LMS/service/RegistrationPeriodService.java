@@ -102,6 +102,21 @@ public class RegistrationPeriodService {
             log.info("✅ Đã kích hoạt cổng đăng ký thành công cho {} lớp học phần!", pendingClasses.size());
         }
     }
+    private void closeClassesAfterRegistration(Long periodId) {
+        log.info("🔒 Tự động chuyển trạng thái các lớp thuộc đợt đăng ký ID [{}] sang ONGOING...", periodId);
+
+        // Tìm toàn bộ các lớp đang ở trạng thái đăng ký thuộc đợt này
+        var activeClasses = classRepository.findByRegistrationPeriodIdAndStatus(periodId, ClassStatus.REGISTRATION);
+
+        if (activeClasses != null && !activeClasses.isEmpty()) {
+            for (var clazz : activeClasses) {
+                clazz.setStatus(ClassStatus.ONGOING); // 🎯 Chuyển trạng thái sang ĐANG DIỄN RA
+                clazz.setUpdatedAt(LocalDateTime.now());
+            }
+            classRepository.saveAll(activeClasses);
+            log.info("✅ Đã đóng cổng thành công và chuyển hành trình học cho {} lớp học phần!", activeClasses.size());
+        }
+    }
 
     @Scheduled(cron = "0 * * * * ?") // Canh giờ quét mỗi phút
     @Transactional
@@ -134,6 +149,7 @@ public class RegistrationPeriodService {
             period.setStatus(RegistrationStatus.CLOSED);
             period.setUpdatedAt(now);
             periodRepository.save(period);
+            closeClassesAfterRegistration(period.getId());
 
 
         }

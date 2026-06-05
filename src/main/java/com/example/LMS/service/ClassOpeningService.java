@@ -226,102 +226,130 @@ public class ClassOpeningService {
     }
 
     @Transactional
-    public void reviewOpeningRequest(Long requestId, ApproveClassRequestDto dto) {
-        log.info("⚡ Tiến hành thẩm định đơn đề xuất mở lớp ID: {} từ Form xếp lịch...", requestId);
+    public void rejectOpeningRequest(Long requestId, RejectClassRequestDto dto) {
+        log.info("🔴 Xử lý hành chính: Từ chối đơn đề xuất mở lớp ID: {}", requestId);
 
-        // 1. Tìm đơn đề xuất trong DB
         ClassOpeningRequest openingRequest = requestRepository.findById(requestId)
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đề xuất mở lớp học phần này!"));
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đề xuất mở lớp!"));
 
         if (openingRequest.getStatus() != ClassOpenningStatus.PENDING) {
-            throw new CustomException(HttpStatus.BAD_REQUEST, "Đơn đề xuất này đã được xử lý rồi, không thể chỉnh sửa!");
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Đơn đề xuất này đã được xử lý rồi, không thể từ chối!");
         }
 
-        // 2. XỬ LÝ NHÁNH TỪ CHỐI (REJECTED)
-        if (dto.getStatus() == ClassOpenningStatus.REJECTED) {
-            if (dto.getRejectReason() == null || dto.getRejectReason().isBlank()) {
-                throw new CustomException(HttpStatus.BAD_REQUEST, "Vui lòng nhập lý do từ chối đề xuất mở lớp!");
-            }
-            openingRequest.setStatus(ClassOpenningStatus.REJECTED);
-            openingRequest.setRejectReason(dto.getRejectReason());
-            openingRequest.setUpdatedAt(LocalDateTime.now());
-            requestRepository.save(openingRequest);
-            log.info("🔴 Đã từ chối đơn đề xuất mở lớp ID: {}. Lý do: {}", requestId, dto.getRejectReason());
-            return;
+        openingRequest.setStatus(ClassOpenningStatus.REJECTED);
+        openingRequest.setRejectReason(dto.getRejectReason());
+        openingRequest.setUpdatedAt(LocalDateTime.now());
+        requestRepository.save(openingRequest);
+        log.info("✅ Đã chuyển trạng thái đơn ID: {} sang REJECTED.", requestId);
+    }
+
+    // =========================================================================
+    // 🌟 API 1B: PHÒNG ĐÀO TẠO CHỈ BẤM NÚT DUYỆT ĐƠN HÀNH CHÍNH (CHƯA SINH LỚP)
+    // =========================================================================
+    @Transactional
+    public void approveOpeningRequest(Long requestId) {
+        log.info("🟢 Xử lý hành chính: Phê duyệt đơn đề xuất mở lớp ID: {}", requestId);
+
+        ClassOpeningRequest openingRequest = requestRepository.findById(requestId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đề xuất mở lớp!"));
+
+        if (openingRequest.getStatus() != ClassOpenningStatus.PENDING) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Đơn đề xuất này đã được xử lý rồi, không thể phê duyệt!");
         }
 
-        // 3. XỬ LÝ NHÁNH PHÊ DUYỆT (APPROVED)
-        if (dto.getStatus() == ClassOpenningStatus.APPROVED) {
-            // Validate dữ liệu từ Form gửi lên
-            if (!userRepository.existsById(dto.getManagerId())) {
-                throw new CustomException(HttpStatus.NOT_FOUND, "Không thể gán lớp! Trưởng khoa được chọn không tồn tại.");
-            }
-            // 🛡️ CHỐT CHẶN VÀNG: Kiểm tra trùng lịch phòng học (Tránh đụng độ TKB)
-            boolean isRoomOccupied = classScheduleRepository.existsByRoomIdAndDayOfWeekAndShiftId(
-                    dto.getRoomId(), dto.getDayOfWeek(), dto.getShiftId()
-            );
-            if (isRoomOccupied) {
-                throw new CustomException(HttpStatus.BAD_REQUEST, "Xung đột lịch học! Phòng học này vào Thứ " + dto.getDayOfWeek() + " - Ca " + dto.getShiftId() + " đã có lớp khác sử dụng.");
-            }
+        openingRequest.setStatus(ClassOpenningStatus.APPROVED);
+        openingRequest.setRejectReason(null); // Xóa sạch lý do từ chối cũ nếu có
+        openingRequest.setUpdatedAt(LocalDateTime.now());
+        requestRepository.save(openingRequest);
+        log.info("✅ Đã đóng nhãn APPROVED thành công cho đơn ID: {}", requestId);
+    }
+    @Transactional
+    public void generateClassesFromRequest(Long requestId, GenerateClassRequestDto dto) {
+        log.info("🔄 Bắt đầu quy trình khởi tạo loạt lớp thực tế từ đơn đề xuất ID: {}", requestId);
 
-            // Cập nhật trạng thái đơn đề xuất sang APPROVED
-            openingRequest.setStatus(ClassOpenningStatus.APPROVED);
-            openingRequest.setUpdatedAt(LocalDateTime.now());
-            requestRepository.save(openingRequest);
+        ClassOpeningRequest openingRequest = requestRepository.findById(requestId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đề xuất mở lớp!"));
 
-            // 4. TIẾN HÀNH SINH LỚP HỌC PHẦN CHÍNH THỨC (`classes`)
-            String courseCode = courseRepository.findById(openingRequest.getCourseId())
-                    .map(Course::getCode)
-                    .orElse("MONHOC");
-            String semesterCode = openingRequest.getSemester().getSemesterCode();
+        if (openingRequest.getStatus() != ClassOpenningStatus.APPROVED) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Đơn đề xuất này chưa được Phòng Đào tạo duyệt sang nhãn APPROVED!");
+        }
 
-            // Đếm số lớp hiện tại của môn đó trong kỳ để sinh số thứ tự (Ví dụ: KTPM-HK1-L01)
-            long currentClassCount = classRepository.countBySemesterIdAndCourseId(openingRequest.getSemester().getId(), openingRequest.getCourseId());
-            String autoClassCode = String.format("%s-%s-L%02d", courseCode, semesterCode, currentClassCount + 1);
+        // Kiểm tra sự tồn tại của Trưởng khoa được chọn
+        User managerUser = userRepository.findById(dto.getManagerId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Tài khoản Trưởng khoa được chọn không tồn tại!"));
+
+        // 🛡️ CHỐT CHẶN BẢO MẬT: Kiểm tra xem tài khoản được gán có quyền CLASS_CREATE hay không
+        boolean hasClassCreatePermission = managerUser.getRoles().stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .anyMatch(permission -> "CLASS_CREATE".equals(permission.getCode()));
+
+        if (!hasClassCreatePermission) {
+            log.warn("🚨 Khước từ khởi tạo lớp: Tài khoản ID [{}] không sở hữu quyền CLASS_CREATE!", dto.getManagerId());
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Không thể gán! Người quản lý được chọn không có quyền mở lớp (CLASS_CREATE).");
+        }
+
+        // Kiểm tra xung đột ca/phòng học
+        boolean isRoomOccupied = classScheduleRepository.existsByRoomIdAndDayOfWeekAndShiftId(
+                dto.getRoomId(), dto.getDayOfWeek(), dto.getShiftId()
+        );
+        if (isRoomOccupied) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Xung đột lịch học! Phòng học này vào thời gian chọn đã có lớp khác sử dụng.");
+        }
+
+        String courseCode = courseRepository.findById(openingRequest.getCourseId())
+                .map(Course::getCode).orElse("MONHOC");
+        String semesterCode = openingRequest.getSemester().getSemesterCode();
+        Long semesterId = openingRequest.getSemester().getId();
+
+        Room cleanRoom = roomRepository.findById(dto.getRoomId()).orElseThrow();
+        Shift cleanShift = shiftRepository.findById(dto.getShiftId()).orElseThrow();
+
+        int totalClassesToCreate = dto.getNumberOfClasses();
+        long currentClassCount = classRepository.countBySemesterIdAndCourseId(semesterId, openingRequest.getCourseId());
+
+        // Vòng lặp sinh loạt lớp trống, giảng viên mặc định để null (Chuẩn phương án 1)
+        for (int i = 0; i < totalClassesToCreate; i++) {
+            String autoClassCode = String.format("%s-%s-L%02d", courseCode, semesterCode, currentClassCount + 1 + i);
 
             ClassEntity officialClass = ClassEntity.builder()
                     .semester(openingRequest.getSemester())
                     .courseId(openingRequest.getCourseId())
                     .managerId(dto.getManagerId())
-                    .lecturerId(null)       // Giảng viên được chọn từ Form
+                    .lecturerId(null)
                     .code(autoClassCode)
                     .maxStudents(openingRequest.getExpectedStudents())
-                    .status(ClassStatus.PENDING)    // Chờ cổng đăng ký học phần mở
+                    .status(ClassStatus.PENDING)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
 
             ClassEntity savedClass = classRepository.save(officialClass);
 
-            Room cleanRoom = roomRepository.findById(dto.getRoomId())
-                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Phòng học không tồn tại!"));
-
-            Shift cleanShift = shiftRepository.findById(dto.getShiftId())
-                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Ca học không tồn tại!"));
-            // 5. TỰ ĐỘNG LƯU LỊCH HỌC VÀO THỜI KHÓA BIỂU (`class_schedules`)
-            ClassSchedule schedule = ClassSchedule.builder()
-                    .classEntity(savedClass)
-                    .room(cleanRoom)
-                    .shift(cleanShift)
-                    .dayOfWeek(dto.getDayOfWeek()) // Thứ từ Form
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
-                    .build();
-
-            classScheduleRepository.save(schedule);
-            log.info("🟢 Phê duyệt thành công đơn ID: {}. Đã tạo lớp {} và ghim lịch học thành công!", requestId, autoClassCode);
+            // X xếp Thời khóa biểu ban đầu dính chặt vào lớp đầu tiên (L01)
+            if (i == 0) {
+                ClassSchedule schedule = ClassSchedule.builder()
+                        .classEntity(savedClass)
+                        .room(cleanRoom)
+                        .shift(cleanShift)
+                        .dayOfWeek(dto.getDayOfWeek())
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build();
+                classScheduleRepository.save(schedule);
+                log.info("📌 Ghim TKB lớp đầu tiên thành công: {}", autoClassCode);
+            } else {
+                log.info("📌 Khởi tạo thành công lớp bổ sung trống: {}", autoClassCode);
+            }
         }
-
-
+        log.info("✅ Quy trình hoàn tất! Tổng số lớp trống đã tạo: {}", totalClassesToCreate);
     }
-    // LẤY DANH SÁCH GIẢNG VIÊN ĐỘNG - CHỈ LẤY GIẢNG VIÊN THUỘC KHOA CỦA MÔN HỌC
+
     public List<DropdownResponseDto> getInstructorsDropdown(Long classId) {
         log.info("🔍 Trưởng khoa đang lấy danh sách giảng viên thuộc khoa để phân công cho lớp ID: {}", classId);
 
-        // Gọi câu Query lọc thông minh đã cấu hình ở bước 1
+        // Gọi câu Query lọc thông minh từ userRepository của ông
         return userRepository.findInstructorsByClassDepartment(classId);
     }
-
     // 2. LOGIC XỬ LÝ: GÁN GIẢNG VIÊN VÀO LỚP HỌC PHẦN (CÓ CHECK TRÙNG LỊCH DẠY)
     // =========================================================================
     @Transactional

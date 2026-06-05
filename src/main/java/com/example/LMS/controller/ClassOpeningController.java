@@ -1,9 +1,6 @@
 package com.example.LMS.controller;
 
-import com.example.LMS.dto.request.ApproveClassRequestDto;
-import com.example.LMS.dto.request.AssignLecturerDto;
-import com.example.LMS.dto.request.ClassOpeningRequestDto;
-import com.example.LMS.dto.request.RequestFilterDto;
+import com.example.LMS.dto.request.*;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.ClassOpeningResponseDto;
 import com.example.LMS.dto.response.DropdownResponseDto;
@@ -138,23 +135,49 @@ public class ClassOpeningController {
                 .build();
     }
 
-    @PutMapping("/{requestId}/review")
-    @PreAuthorize("hasAuthority('CLASS_APPROVE') or hasAuthority('CLASS_REJECT')")
-    // 🛡️ BẢO VỆ CHẶT CHẼ BẰNG QUYỀN 23 HOẶC 24
-    @Operation(summary = "Phê duyệt hoặc Từ chối đơn đề xuất - Chốt dữ liệu từ Form xếp lịch")
-    public ApiResponse<String> reviewRequest(
+    @PutMapping("/{requestId}/reject")
+    @PreAuthorize("hasAuthority('CLASS_REJECT')")
+    @Operation(summary = "Từ chối đơn đề xuất mở lớp học phần")
+    public ApiResponse<String> rejectRequest(
             @PathVariable Long requestId,
-            @Valid @RequestBody ApproveClassRequestDto reviewDto) {
+            @Valid @RequestBody RejectClassRequestDto rejectDto) {
 
-        classOpeningService.reviewOpeningRequest(requestId, reviewDto);
-
-        String actionMessage = reviewDto.getStatus() == ClassOpenningStatus.APPROVED ?
-                "Đã phê duyệt, khởi tạo lớp học phần và xếp Thời khóa biểu thành công!" : "Đã từ chối đơn đề xuất mở lớp.";
+        classOpeningService.rejectOpeningRequest(requestId, rejectDto);
 
         return ApiResponse.<String>builder()
                 .code(200)
-                .message(actionMessage)
-                .data(reviewDto.getStatus().name())
+                .message("Đã từ chối đơn đề xuất mở lớp học phần thành công!")
+                .data("REJECTED_SUCCESSFULLY")
+                .build();
+    }
+
+    // 🌟 API 1B: CHỈ XỬ LÝ PHÊ DUYỆT ĐƠN HÀNH CHÍNH (CHƯA SINH LỚP)
+    @PutMapping("/{requestId}/approve")
+    @PreAuthorize("hasAuthority('CLASS_APPROVE')")
+    @Operation(summary = "Phê duyệt đơn đề xuất mở lớp - Chuyển trạng thái đơn sang APPROVED")
+    public ApiResponse<String> approveRequest(@PathVariable Long requestId) {
+
+        classOpeningService.approveOpeningRequest(requestId);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Đã phê duyệt đơn đề xuất hành chính! Đơn hiện tại đã mang nhãn APPROVED.")
+                .data("APPROVED_SUCCESSFULLY")
+                .build();
+    }
+    @PutMapping("/{requestId}/generate-classes")
+    @PreAuthorize("hasAuthority('CLASS_APPROVE')")
+    @Operation(summary = "Khởi tạo loạt lớp học phần trống và ghim lịch học ban đầu dựa theo số lượng")
+    public ApiResponse<String> generateClasses(
+            @PathVariable Long requestId,
+            @Valid @RequestBody GenerateClassRequestDto generateDto) {
+
+        classOpeningService.generateClassesFromRequest(requestId, generateDto);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Hệ thống đã tự động sinh khởi tạo thành công " + generateDto.getNumberOfClasses() + " lớp học phần trống!")
+                .data("CLASSES_GENERATED_SUCCESSFULLY")
                 .build();
     }
 
