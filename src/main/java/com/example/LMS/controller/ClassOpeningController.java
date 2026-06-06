@@ -165,7 +165,7 @@ public class ClassOpeningController {
                 .data("APPROVED_SUCCESSFULLY")
                 .build();
     }
-    @PutMapping("/{requestId}/generate-classes")
+    @PostMapping("/{requestId}/generate-classes")
     @PreAuthorize("hasAuthority('CLASS_APPROVE')")
     @Operation(summary = "Khởi tạo loạt lớp học phần trống và ghim lịch học ban đầu dựa theo số lượng")
     public ApiResponse<String> generateClasses(
