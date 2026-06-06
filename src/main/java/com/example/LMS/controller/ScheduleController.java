@@ -21,15 +21,27 @@ public class ScheduleController {
 
     private final ScheduleService scheduleService;
 
+    // API cho SINH VIÊN — hiện cả lecturerName
     @GetMapping("/my")
-    @PreAuthorize("hasAuthority('SCHEDULE_VIEW')")
-    @Operation(summary = "Xem thời khóa biểu của tôi",
-            description = "Trả về lịch học của các lớp sinh viên đã đăng ký")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Thời khóa biểu sinh viên", description = "Hiện lịch học kèm tên giảng viên")
     public ApiResponse<List<ScheduleResponse>> getMySchedule() {
         return ApiResponse.<List<ScheduleResponse>>builder()
                 .code(200)
                 .message("Tải thời khóa biểu thành công!")
                 .data(scheduleService.getMySchedule())
+                .build();
+    }
+
+    // API cho GIẢNG VIÊN — không hiện lecturerName
+    @GetMapping("/lecturer")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    @Operation(summary = "Thời khóa biểu giảng viên", description = "Hiện lịch dạy của giảng viên, không hiện tên giảng viên")
+    public ApiResponse<List<ScheduleResponse>> getLecturerSchedule() {
+        return ApiResponse.<List<ScheduleResponse>>builder()
+                .code(200)
+                .message("Tải thời khóa biểu thành công!")
+                .data(scheduleService.getLecturerSchedule())
                 .build();
     }
 }

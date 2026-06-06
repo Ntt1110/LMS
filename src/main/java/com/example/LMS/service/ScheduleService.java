@@ -64,4 +64,42 @@ public class ScheduleService {
                     .build();
         }).collect(Collectors.toList());
     }
+
+    public List<ScheduleResponse> getLecturerSchedule() {
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var lecturer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        // Lấy lịch dạy theo lecturerId
+        List<ClassSchedule> schedules = scheduleRepositoryStudent
+                .findSchedulesByLecturerId(lecturer.getId());
+
+        return schedules.stream().map(cs -> {
+            var classEntity = cs.getClassEntity();
+
+            String courseName = courseRepository.findNameById(classEntity.getCourseId())
+                    .orElse("N/A");
+            String courseCode = courseRepository.findById(classEntity.getCourseId())
+                    .map(c -> c.getCode()).orElse("N/A");
+            Integer credits = courseRepository.findById(classEntity.getCourseId())
+                    .map(c -> c.getCredits()).orElse(null);
+
+            return ScheduleResponse.builder()
+                    .classId(classEntity.getId())
+                    .classCode(classEntity.getCode())
+                    .courseName(courseName)
+                    .courseCode(courseCode)
+                    .credits(credits)
+                    .dayOfWeek(cs.getDayOfWeek())
+                    .shiftName(cs.getShift().getName())
+                    .startTime(cs.getShift().getStartTime())
+                    .endTime(cs.getShift().getEndTime())
+                    .roomName(cs.getRoom().getName())
+                    .roomType(cs.getRoom().getType().name())
+                    .lecturerName(null) // ← không hiện tên giảng viên
+                    .semesterCode(classEntity.getSemester().getSemesterCode())
+                    .build();
+        }).collect(Collectors.toList());
+    }
 }

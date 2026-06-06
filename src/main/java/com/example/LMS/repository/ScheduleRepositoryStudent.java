@@ -20,4 +20,13 @@ public interface ScheduleRepositoryStudent extends JpaRepository<ClassSchedule, 
         AND cs.deletedAt IS NULL
     """)
     List<ClassSchedule> findSchedulesByStudentId(@Param("studentId") Long studentId);
+
+    @Query("""
+    SELECT cs FROM ClassSchedule cs
+    JOIN cs.classEntity c
+    WHERE c.lecturerId = :lecturerId
+    AND cs.deletedAt IS NULL
+    AND c.deletedAt IS NULL
+""")
+    List<ClassSchedule> findSchedulesByLecturerId(@Param("lecturerId") Long lecturerId);
 }
