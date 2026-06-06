@@ -19,5 +19,6 @@ public class ClassOpeningResponseDto {
     private String note;
     private ClassOpenningStatus status;
     private LocalDateTime createdAt;
+    private Long semesterId;
 
 }
