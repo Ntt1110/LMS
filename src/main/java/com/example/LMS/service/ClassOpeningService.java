@@ -107,49 +107,71 @@ public class ClassOpeningService {
         return majorRepository.findAllMajorsDropdown();
     }
 
-    public Page<ClassOpeningResponseDto> getPagingRequests(RequestFilterDto filter) {
+
+    @Transactional(readOnly = true)
+    public Page<ClassOpeningResponseDto> getPendingOpeningRequestsForUser(RequestFilterDto filter) {
+        log.info("🔍 Đang truy vấn danh sách đề xuất mở lớp theo phân quyền...");
+
+        // 1. Cấu hình phân trang
         int pageIndex = filter.getPage() > 0 ? filter.getPage() - 1 : 0;
         Pageable pageable = PageRequest.of(pageIndex, filter.getSize());
 
-        Page<ClassOpeningRequest> entityPage = requestRepository.findAll(
-                ClassOpeningSpecification.filterRequests(filter), pageable
+        // 2. Lấy thông tin user hiện tại từ Security Context
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ!"));
+
+        // =========================================================================
+        // 3. 🛡️ CHỐT CHẶN TUYỆT ĐỐI: BỎ DÒ CHỮ, CHUYỂN SANG DÒ CẤU TRÚC DATABASE
+        // =========================================================================
+        // Dùng luôn hàm ông viết sẵn để xem user này có quản lý khoa nào không
+        java.util.Optional<Long> managedDeptId = departmentRepository.findIdByManagerId(currentUser.getId());
+
+        Long searchManagerId = null;
+
+        if (managedDeptId.isPresent()) {
+            // Có quản lý khoa -> Khẳng định 100% đây là Trưởng Khoa
+            searchManagerId = currentUser.getId();
+            log.info("🔵 Nhận diện [Trưởng Khoa] (ID: {} - Quản lý khoa: {}): Chỉ lấy đề xuất thuộc khoa.", searchManagerId, managedDeptId.get());
+        } else {
+            // Không quản lý khoa nào -> Khẳng định 100% đây là Phòng Đào Tạo / Admin
+            log.info("🟢 Nhận diện [Phòng Đào Tạo]: Kéo toàn bộ danh sách hệ thống.");
+        }
+
+        // 4. Xử lý chuỗi tìm kiếm an toàn
+        String keyword = (filter.getSearch() != null && !filter.getSearch().isBlank()) ? filter.getSearch().trim() : null;
+
+        // 5. 🚀 Gọi câu Query vạn năng
+        Page<ClassOpeningRequest> entityPage = requestRepository.findFilteredRequests(
+                searchManagerId,
+                filter.getStatus(),
+                filter.getSemesterId(),
+                keyword,
+                pageable
         );
 
-        return entityPage.map(entity -> {
-            // 1. Map các trường có sẵn từ Entity sang DTO
-            ClassOpeningResponseDto.ClassOpeningResponseDtoBuilder builder = ClassOpeningResponseDto.builder()
-                    .requestId(entity.getId())
-                    .expectedStudents(entity.getExpectedStudents())
-                    .note(entity.getNote())
-                    .status(entity.getStatus())
-                    .createdAt(entity.getCreatedAt());
+        // 6. Map dữ liệu sang DTO
+        return entityPage.map(request -> {
+            String requesterName = userProfileRepository.findByUserId(request.getRequesterId())
+                    .map(UserProfile::getFullName)
+                    .orElse("Hệ thống");
 
-            // 2. Xử lý Học kỳ (Giả định trường này ông map đối tượng Semester thành công)
-            if (entity.getSemester() != null) {
-                builder.semesterCode(entity.getSemester().getSemesterCode());
-            }
+            String courseName = courseRepository.findNameById(request.getCourseId())
+                    .orElse("Môn học không tồn tại");
 
-            // 3. 🌟 XỬ LÝ MÔN HỌC (Lấy tên từ CourseRepository thông qua ID thô)
-            // Hãy thay "getCourseId()" bằng đúng tên biến kiểu Long chứa ID môn học trong Entity của ông
-            if (entity.getCourseId() != null) {
-                Long cId = entity.getCourseId();
-                builder.courseId(cId);
-
-                // Tìm tên môn học dưới DB đắp vào DTO
-                courseRepository.findById(cId).ifPresent(course -> builder.courseName(course.getName()));
-            }
-
-            // 4. 🌟 XỬ LÝ NGƯỜI ĐỀ XUẤT (Lấy tên thông qua ID thô)
-            // Hãy thay "getRequesterId()" bằng đúng tên biến kiểu Long chứa ID người tạo trong Entity của ông
-            if (entity.getRequesterId() != null) {
-                Long rId = entity.getRequesterId();
-                builder.requesterId(rId);
-
-                // Tìm hồ sơ người dùng để hốt họ tên (fullName) đắp vào DTO
-                userProfileRepository.findById(rId).ifPresent(profile -> builder.requesterName(profile.getFullName()));
-            }
-
-            return builder.build();
+            return ClassOpeningResponseDto.builder()
+                    .requestId(request.getId())
+                    .semesterCode(request.getSemester().getSemesterCode())
+                    .semesterId(request.getSemester().getId())
+                    .courseId(request.getCourseId())
+                    .courseName(courseName)
+                    .requesterId(request.getRequesterId())
+                    .requesterName(requesterName)
+                    .expectedStudents(request.getExpectedStudents())
+                    .note(request.getNote())
+                    .status(request.getStatus())
+                    .createdAt(request.getCreatedAt())
+                    .build();
         });
     }
     public List<ClassOpeningResponseDto> getPendingOpeningRequests() {

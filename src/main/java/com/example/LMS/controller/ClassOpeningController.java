@@ -72,7 +72,7 @@ public class ClassOpeningController {
     public ApiResponse<Page<ClassOpeningResponseDto>> getPendingRequests(RequestFilterDto filterDto) {
 
         // 🌟 Biến pagingData hứng dữ liệu lúc này phải mang kiểu DTO phẳng sạch sẽ
-        Page<ClassOpeningResponseDto> pagingData = classOpeningService.getPagingRequests(filterDto);
+        Page<ClassOpeningResponseDto> pagingData = classOpeningService.getPendingOpeningRequestsForUser(filterDto);
 
         return ApiResponse.<Page<ClassOpeningResponseDto>>builder()
                 .code(200)
