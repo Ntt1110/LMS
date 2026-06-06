@@ -303,10 +303,10 @@ public class ClassOpeningService {
 
         boolean hasClassCreatePermission = managerUser.getRoles().stream()
                 .flatMap(role -> role.getPermissions().stream())
-                .anyMatch(permission -> "CLASS_CREATE".equals(permission.getCode()));
+                .anyMatch(permission -> "CLASS_ASSIGN_TEACHER".equals(permission.getCode()));
 
         if (!hasClassCreatePermission) {
-            throw new CustomException(HttpStatus.BAD_REQUEST, "Không thể gán! Người quản lý được chọn không có quyền mở lớp (CLASS_CREATE).");
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Tài khoản được chọn không hợp lệ! Người này không có quyền quản lý/phân công giảng viên (CLASS_ASSIGN_TEACHER).");
         }
 
         // 3. Kiểm tra Học kỳ và Môn học truyền từ Request xem có khớp hệ thống không
