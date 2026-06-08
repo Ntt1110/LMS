@@ -10,22 +10,12 @@ import java.time.LocalTime;
 @Setter
 @Builder
 public class ScheduleResponse {
-    // Thông tin lớp
-    private Long classId;
-    private String classCode;
-    private String courseName;
-    private String courseCode;
-    private Integer credits;
-
-    // Thông tin lịch học
-    private Integer dayOfWeek;     // 2=Thứ 2, 3=Thứ 3...
-    private String shiftName;      // Ca 1 (Sáng)...
-    private LocalTime startTime;
-    private LocalTime endTime;
-    private String roomName;
-    private String roomType;
-
-    // Thông tin giảng viên & học kỳ
-    private String lecturerName;
-    private String semesterCode;
+    private String courseName;      // Tên môn
+    private String classCode;       // Mã lớp
+    private String roomName;        // Tên phòng
+    private Integer dayOfWeek;      // Ngày trong tuần (2=Thứ 2...)
+    private String shiftName;       // Ca học
+    private LocalTime startTime;    // Thời gian bắt đầu
+    private LocalTime endTime;      // Thời gian kết thúc
+    private String lecturerName;    // Tên giảng viên (null với giảng viên)
 }

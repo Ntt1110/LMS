@@ -38,29 +38,20 @@ public class ScheduleService {
 
             String courseName = courseRepository.findNameById(classEntity.getCourseId())
                     .orElse("N/A");
-            String courseCode = courseRepository.findById(classEntity.getCourseId())
-                    .map(c -> c.getCode()).orElse("N/A");
-            Integer credits = courseRepository.findById(classEntity.getCourseId())
-                    .map(c -> c.getCredits()).orElse(null);
             String lecturerName = classEntity.getLecturerId() != null
                     ? userProfileRepository.findByUserId(classEntity.getLecturerId())
                     .map(p -> p.getFullName()).orElse("Chưa phân công")
                     : "Chưa phân công";
 
             return ScheduleResponse.builder()
-                    .classId(classEntity.getId())
-                    .classCode(classEntity.getCode())
                     .courseName(courseName)
-                    .courseCode(courseCode)
-                    .credits(credits)
+                    .classCode(classEntity.getCode())
+                    .roomName(cs.getRoom().getName())
                     .dayOfWeek(cs.getDayOfWeek())
                     .shiftName(cs.getShift().getName())
                     .startTime(cs.getShift().getStartTime())
                     .endTime(cs.getShift().getEndTime())
-                    .roomName(cs.getRoom().getName())
-                    .roomType(cs.getRoom().getType().name())
                     .lecturerName(lecturerName)
-                    .semesterCode(classEntity.getSemester().getSemesterCode())
                     .build();
         }).collect(Collectors.toList());
     }
@@ -80,25 +71,16 @@ public class ScheduleService {
 
             String courseName = courseRepository.findNameById(classEntity.getCourseId())
                     .orElse("N/A");
-            String courseCode = courseRepository.findById(classEntity.getCourseId())
-                    .map(c -> c.getCode()).orElse("N/A");
-            Integer credits = courseRepository.findById(classEntity.getCourseId())
-                    .map(c -> c.getCredits()).orElse(null);
 
             return ScheduleResponse.builder()
-                    .classId(classEntity.getId())
-                    .classCode(classEntity.getCode())
                     .courseName(courseName)
-                    .courseCode(courseCode)
-                    .credits(credits)
+                    .classCode(classEntity.getCode())
+                    .roomName(cs.getRoom().getName())
                     .dayOfWeek(cs.getDayOfWeek())
                     .shiftName(cs.getShift().getName())
                     .startTime(cs.getShift().getStartTime())
                     .endTime(cs.getShift().getEndTime())
-                    .roomName(cs.getRoom().getName())
-                    .roomType(cs.getRoom().getType().name())
-                    .lecturerName(null) // ← không hiện tên giảng viên
-                    .semesterCode(classEntity.getSemester().getSemesterCode())
+                    .lecturerName(null) // không hiện tên giảng viên
                     .build();
         }).collect(Collectors.toList());
     }

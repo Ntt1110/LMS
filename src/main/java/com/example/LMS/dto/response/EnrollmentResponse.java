@@ -10,14 +10,23 @@ import java.time.LocalDateTime;
 @Setter
 @Builder
 public class EnrollmentResponse {
-    private Long enrollmentId;
+    // Môn học
+    private Long courseId;
+    private String courseCode;
+    private String courseName;
+    private Integer credits;
+
+    // Lớp học phần
     private Long classId;
     private String classCode;
-    private String courseName;
-    private String courseCode;
-    private Integer credits;
-    private String lecturerName;
-    private String semesterCode;
-    private String status;         // REGISTERED, OFFICIAL, DROPPED
+
+    // Lịch học
+    private Integer dayOfWeek;   // Thứ mấy
+    private String shiftName;    // Ca mấy
+    private String roomName;     // Phòng nào
+
+    // Trạng thái đăng ký (REGISTERED, OFFICIAL, DROPPED)
+    private String status;
+
     private LocalDateTime enrolledAt;
 }
