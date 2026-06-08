@@ -211,12 +211,20 @@ public class ClassService {
     // DANH SÁCH LỚP ĐƯỢC PHÂN CÔNG (Giảng viên)
     // GET /api/v1/classes/my-assigned
     // ============================================================
-    public List<LecturerClassResponse> getMyAssignedClasses() {
+    public List<LecturerClassResponse> getMyAssignedClasses(String status) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         var lecturer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
 
         List<ClassEntity> classes = classRepository.findByLecturerIdAndDeletedAtIsNull(lecturer.getId());
+        if (status != null && !status.isBlank()) {
+            try {
+                ClassStatus classStatus = ClassStatus.valueOf(status.toUpperCase());
+                classes = classes.stream()
+                        .filter(c -> c.getStatus() == classStatus)
+                        .collect(Collectors.toList());
+            } catch (IllegalArgumentException ignored) {}
+        }
 
         return classes.stream().map(c -> {
             String courseName = courseRepository.findNameById(c.getCourseId()).orElse("N/A");
