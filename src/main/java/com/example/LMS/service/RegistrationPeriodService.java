@@ -2,11 +2,13 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.request.RegistrationPeriodRequestDto;
 import com.example.LMS.entity.Enum.ClassStatus;
+import com.example.LMS.entity.Enum.EnrollmentStatus;
 import com.example.LMS.entity.Enum.RegistrationStatus;
 import com.example.LMS.entity.model.RegistrationPeriod;
 import com.example.LMS.entity.model.Semester;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.ClassEntityRepository;
+import com.example.LMS.repository.EnrollmentRepository;
 import com.example.LMS.repository.RegistrationPeriodRepository;
 import com.example.LMS.repository.SemesterRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,6 +32,8 @@ public class RegistrationPeriodService {
     private final SemesterRepository semesterRepository;
     private final ClassEntityRepository classRepository;
     private final ObjectMapper objectMapper;
+
+    private final EnrollmentRepository enrollmentRepository;
 
     @Transactional
     public void createRegistrationPeriod(RegistrationPeriodRequestDto dto) {
@@ -109,12 +113,15 @@ public class RegistrationPeriodService {
         var activeClasses = classRepository.findByRegistrationPeriodIdAndStatus(periodId, ClassStatus.REGISTRATION);
 
         if (activeClasses != null && !activeClasses.isEmpty()) {
+            int totalFinalizedStudents = 0;
             for (var clazz : activeClasses) {
                 clazz.setStatus(ClassStatus.ONGOING); // 🎯 Chuyển trạng thái sang ĐANG DIỄN RA
                 clazz.setUpdatedAt(LocalDateTime.now());
+                int finalizedCount = enrollmentRepository.updateStatusByClassId(clazz.getId(), EnrollmentStatus.REGISTERED, EnrollmentStatus.OFFICIAL);
+                totalFinalizedStudents += finalizedCount;
             }
             classRepository.saveAll(activeClasses);
-            log.info("✅ Đã đóng cổng thành công và chuyển hành trình học cho {} lớp học phần!", activeClasses.size());
+            log.info("✅ Đã đóng cổng thành công và chuyển hành trình học cho {} lớp học phần!", activeClasses.size(),totalFinalizedStudents);
         }
     }
 
