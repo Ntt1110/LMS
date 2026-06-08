@@ -5,8 +5,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -50,5 +53,23 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Override
     public void deleteFile(String fileUrl) {
         // Logic xóa file trên ổ đĩa sẽ ráp vào sau khi làm chức năng Delete Bài học
+    }
+
+    @Override
+    public Resource loadFileAsResource(String fileName) {
+        try {
+            // Tìm chính xác đường dẫn file trong thư mục uploads
+            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                return resource;
+            } else {
+                throw new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy hoặc không thể đọc file: " + fileName);
+            }
+        } catch (MalformedURLException ex) {
+            // 🌟 ĐÃ SỬA: Chỉ truyền 2 tham số là HttpStatus và Message
+            throw new CustomException(HttpStatus.NOT_FOUND, "Lỗi đường dẫn file: " + fileName);
+        }
     }
 }
