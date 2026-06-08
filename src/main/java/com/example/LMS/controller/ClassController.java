@@ -2,6 +2,8 @@ package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.ClassListRequest;
 import com.example.LMS.dto.response.ClassDetailResponse;
+import com.example.LMS.dto.response.ClassDetailForStudentResponse;
+import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.service.ClassService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -53,5 +55,24 @@ public class ClassController {
         request.setSortDirection(sortDirection);
 
         return ResponseEntity.ok(classService.getClasses(request));
+    }
+
+    // ============================================================
+    // GET /api/v1/classes/{classId}/student-detail
+    // Chi tiết lớp học phần dành cho sinh viên xem trước khi đăng ký
+    // Trả về: giảng viên, ca học, phòng học, học thứ mấy, sĩ số hiện tại
+    // ============================================================
+    @GetMapping("/{classId}/student-detail")
+    @PreAuthorize("hasAuthority('COURSE_CLASS_VIEW')")
+    @Operation(
+            summary = "Chi tiết lớp học phần (sinh viên)",
+            description = "Trả về thông tin lớp gồm giảng viên, ca học, phòng học, thứ trong tuần và sĩ số hiện tại."
+    )
+    public ApiResponse<ClassDetailForStudentResponse> getClassDetailForStudent(@PathVariable Long classId) {
+        return ApiResponse.<ClassDetailForStudentResponse>builder()
+                .code(200)
+                .message("Tải chi tiết lớp học phần thành công!")
+                .data(classService.getClassDetailForStudent(classId))
+                .build();
     }
 }
