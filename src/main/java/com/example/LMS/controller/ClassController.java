@@ -83,11 +83,12 @@ public class ClassController {
     @GetMapping("/my-assigned")
     @PreAuthorize("hasAuthority('CLASS_VIEW')")
     @Operation(summary = "Danh sách lớp được phân công (giảng viên)")
-    public ApiResponse<List<LecturerClassResponse>> getMyAssignedClasses() {
+    public ApiResponse<List<LecturerClassResponse>> getMyAssignedClasses(
+            @RequestParam(required = false) String status) {
         return ApiResponse.<List<LecturerClassResponse>>builder()
                 .code(200)
                 .message("Tải danh sách lớp được phân công thành công!")
-                .data(classService.getMyAssignedClasses())
+                .data(classService.getMyAssignedClasses(status))
                 .build();
     }
 
