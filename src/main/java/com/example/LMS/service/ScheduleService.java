@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +24,7 @@ public class ScheduleService {
     private final CourseRepository courseRepository;
     private final ClassEntityRepository classEntityRepository;
     private final ClassScheduleRepository classScheduleRepository;
+    private final RegistrationPeriodRepository registrationPeriodRepository;
 
     // ============================================================
     // Tính số tuần học của lớp
@@ -65,7 +68,11 @@ public class ScheduleService {
                     : "Chưa phân công";
 
             Integer totalWeeks = calculateTotalWeeks(classEntity.getId(), classEntity.getCourseId());
-
+            LocalDateTime startDate = classEntity.getRegistrationPeriodId() != null
+                    ? registrationPeriodRepository.findById(classEntity.getRegistrationPeriodId())
+                    .map(rp -> rp.getEndTime())
+                    .orElse(null)
+                    : null;
             return ScheduleResponse.builder()
                     .courseName(courseName)
                     .classCode(classEntity.getCode())
@@ -76,6 +83,7 @@ public class ScheduleService {
                     .endTime(cs.getShift().getEndTime())
                     .lecturerName(lecturerName)
                     .totalWeeks(totalWeeks)
+                    .startDate(startDate)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -96,6 +104,11 @@ public class ScheduleService {
                     .orElse("N/A");
 
             Integer totalWeeks = calculateTotalWeeks(classEntity.getId(), classEntity.getCourseId());
+            LocalDateTime startDate = classEntity.getRegistrationPeriodId() != null
+                    ? registrationPeriodRepository.findById(classEntity.getRegistrationPeriodId())
+                    .map(rp -> rp.getEndTime())
+                    .orElse(null)
+                    : null;
 
             return ScheduleResponse.builder()
                     .courseName(courseName)
@@ -107,6 +120,7 @@ public class ScheduleService {
                     .endTime(cs.getShift().getEndTime())
                     .lecturerName(null) // không hiện tên giảng viên
                     .totalWeeks(totalWeeks)
+                    .startDate(startDate)
                     .build();
         }).collect(Collectors.toList());
     }
