@@ -10,12 +10,12 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>, JpaSpecificationExecutor<ClassEntity> {
-    long countBySemesterIdAndCourseId(Long semesterId, Long courseId);
 
+    long countBySemesterIdAndCourseId(Long semesterId, Long courseId);
 
     List<ClassEntity> findByCourseIdAndDeletedAtIsNull(Long courseId);
 
-    //  phần xem danh sách môn học và lớp học cho Sinh viên,  Thêm query đếm số SV đã đăng ký:
+    // Đếm số SV đã đăng ký một lớp
     @Query("SELECT COUNT(e) FROM ClassEnrollment e WHERE e.classEntity.id = :classId")
     int countEnrollmentsByClassId(@Param("classId") Long classId);
 
@@ -32,4 +32,12 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
     );
 
     List<ClassEntity> findBySemesterIdAndStatus(Long semesterId, ClassStatus status);
+
+    // Lấy lịch học của một lớp cụ thể (dùng cho API chi tiết lớp của sinh viên)
+    @Query("""
+        SELECT cs FROM ClassSchedule cs
+        WHERE cs.classEntity.id = :classId
+        AND cs.deletedAt IS NULL
+    """)
+    List<com.example.LMS.entity.model.ClassSchedule> findSchedulesByClassId(@Param("classId") Long classId);
 }
