@@ -1,0 +1,54 @@
+package com.example.LMS.service.File;
+
+import com.example.LMS.exception.CustomException;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+
+@Service
+public class LocalFileStorageServiceImpl implements FileStorageService {
+
+    // Thư mục lưu trữ local (Sẽ tự động tạo folder 'uploads' ở thư mục gốc project)
+    private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
+
+    public LocalFileStorageServiceImpl() {
+        try {
+            Files.createDirectories(this.fileStorageLocation);
+        } catch (Exception ex) {
+            throw new RuntimeException("Không thể tạo thư mục lưu trữ file.", ex);
+        }
+    }
+
+    @Override
+    public String storeFile(MultipartFile file) {
+        // Làm sạch tên file và đính kèm UUID để chống trùng lặp tên/ghi đè file
+        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
+        String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
+
+        try {
+            if (originalFileName.contains("..")) {
+                throw new CustomException(HttpStatus.BAD_REQUEST, "Tên file chứa ký tự không hợp lệ!");
+            }
+            Path targetLocation = this.fileStorageLocation.resolve(uniqueFileName);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+            // Trả về đường dẫn để Frontend có thể lấy file (Tí nữa sẽ mapping cái /uploads/ này)
+            return "/uploads/" + uniqueFileName;
+        } catch (IOException ex) {
+            throw new CustomException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu file. Vui lòng thử lại!");
+        }
+    }
+
+    @Override
+    public void deleteFile(String fileUrl) {
+        // Logic xóa file trên ổ đĩa sẽ ráp vào sau khi làm chức năng Delete Bài học
+    }
+}
