@@ -3,6 +3,9 @@ package com.example.LMS.repository;
 import com.example.LMS.entity.Enum.EnrollmentStatus;
 import com.example.LMS.entity.model.ClassEnrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -22,4 +25,11 @@ public interface EnrollmentRepository extends JpaRepository<ClassEnrollment, Lon
 
     // Lấy danh sách sinh viên của một lớp (không bị DROPPED) — dùng cho giảng viên xem
     List<ClassEnrollment> findByClassEntityIdAndStatusNot(Long classId, EnrollmentStatus status);
+    @Modifying
+    @Query("UPDATE ClassEnrollment e SET e.status = :newStatus, e.updatedAt = CURRENT_TIMESTAMP " +
+            "WHERE e.classEntity.id = :classId AND e.status = :oldStatus")
+    int updateStatusByClassId(
+            @Param("classId") Long classId,
+            @Param("oldStatus") EnrollmentStatus oldStatus,
+            @Param("newStatus") EnrollmentStatus newStatus);
 }
