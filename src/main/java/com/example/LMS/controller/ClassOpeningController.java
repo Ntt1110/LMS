@@ -1,9 +1,6 @@
 package com.example.LMS.controller;
 
-import com.example.LMS.dto.request.ApproveClassRequestDto;
-import com.example.LMS.dto.request.AssignLecturerDto;
-import com.example.LMS.dto.request.ClassOpeningRequestDto;
-import com.example.LMS.dto.request.RequestFilterDto;
+import com.example.LMS.dto.request.*;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.ClassOpeningResponseDto;
 import com.example.LMS.dto.response.DropdownResponseDto;
@@ -13,7 +10,10 @@ import com.example.LMS.service.ClassOpeningService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.example.LMS.dto.response.CourseWithClassesResponse;
 import org.springframework.data.domain.Page;
@@ -23,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/class-requests")
 @RequiredArgsConstructor
+@Slf4j
 public class ClassOpeningController {
 
     private final ClassOpeningService classOpeningService;
@@ -39,14 +40,19 @@ public class ClassOpeningController {
                 .data("Submitted Successfully")
                 .build();
     }
-    @GetMapping("/dropdown/courses")
-    @PreAuthorize("hasAuthority('CLASS_VIEW')") // 🛡️ Cho phép các bên xem dữ liệu để chọn làm đơn
-    @io.swagger.v3.oas.annotations.Operation(summary = "Lấy danh sách Môn học (Dành cho Dropdown Form đề xuất)")
-    public ApiResponse<List<DropdownResponseDto>> getCoursesForProposal() {
+    @GetMapping("/dropdown/dean-courses")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')") // Quyền số 20
+    @Operation(summary = "Lấy danh sách Môn học thuộc Khoa/Ngành của Trưởng khoa đang đăng nhập")
+    public ApiResponse<List<DropdownResponseDto>> getCoursesForDeanProposal(
+            Authentication authentication // 🛡️ Bốc trực tiếp hệ thống chứng thực lõi của Spring Security
+    ) {
+        // Lấy username (Mã số hoặc Email giảng viên đăng nhập găm trong Token)
+        String currentUsername = authentication.getName();
+
         return ApiResponse.<List<DropdownResponseDto>>builder()
                 .code(200)
-                .message("Tải danh sách môn học thành công!")
-                .data(classOpeningService.getCoursesDropdown())
+                .message("Tải danh sách môn học thuộc khoa quản lý thành công!")
+                .data(classOpeningService.getCoursesDropdownForDean(currentUsername)) // Đẩy sang Service xử lý
                 .build();
     }
 
@@ -66,7 +72,7 @@ public class ClassOpeningController {
     public ApiResponse<Page<ClassOpeningResponseDto>> getPendingRequests(RequestFilterDto filterDto) {
 
         // 🌟 Biến pagingData hứng dữ liệu lúc này phải mang kiểu DTO phẳng sạch sẽ
-        Page<ClassOpeningResponseDto> pagingData = classOpeningService.getPagingRequests(filterDto);
+        Page<ClassOpeningResponseDto> pagingData = classOpeningService.getPendingOpeningRequestsForUser(filterDto);
 
         return ApiResponse.<Page<ClassOpeningResponseDto>>builder()
                 .code(200)
@@ -129,23 +135,52 @@ public class ClassOpeningController {
                 .build();
     }
 
-    @PutMapping("/{requestId}/review")
-    @PreAuthorize("hasAuthority('CLASS_APPROVE') or hasAuthority('CLASS_REJECT')")
-    // 🛡️ BẢO VỆ CHẶT CHẼ BẰNG QUYỀN 23 HOẶC 24
-    @Operation(summary = "Phê duyệt hoặc Từ chối đơn đề xuất - Chốt dữ liệu từ Form xếp lịch")
-    public ApiResponse<String> reviewRequest(
+    @PutMapping("/{requestId}/reject")
+    @PreAuthorize("hasAuthority('CLASS_REJECT')")
+    @Operation(summary = "Từ chối đơn đề xuất mở lớp học phần")
+    public ApiResponse<String> rejectRequest(
             @PathVariable Long requestId,
-            @Valid @RequestBody ApproveClassRequestDto reviewDto) {
+            @Valid @RequestBody RejectClassRequestDto rejectDto) {
 
-        classOpeningService.reviewOpeningRequest(requestId, reviewDto);
-
-        String actionMessage = reviewDto.getStatus() == ClassOpenningStatus.APPROVED ?
-                "Đã phê duyệt, khởi tạo lớp học phần và xếp Thời khóa biểu thành công!" : "Đã từ chối đơn đề xuất mở lớp.";
+        classOpeningService.rejectOpeningRequest(requestId, rejectDto);
 
         return ApiResponse.<String>builder()
                 .code(200)
-                .message(actionMessage)
-                .data(reviewDto.getStatus().name())
+                .message("Đã từ chối đơn đề xuất mở lớp học phần thành công!")
+                .data("REJECTED_SUCCESSFULLY")
+                .build();
+    }
+
+    // 🌟 API 1B: CHỈ XỬ LÝ PHÊ DUYỆT ĐƠN HÀNH CHÍNH (CHƯA SINH LỚP)
+    @PutMapping("/{requestId}/approve")
+    @PreAuthorize("hasAuthority('CLASS_APPROVE')")
+    @Operation(summary = "Phê duyệt đơn đề xuất mở lớp - Chuyển trạng thái đơn sang APPROVED")
+    public ApiResponse<String> approveRequest(@PathVariable Long requestId) {
+
+        classOpeningService.approveOpeningRequest(requestId);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Đã phê duyệt đơn đề xuất hành chính! Đơn hiện tại đã mang nhãn APPROVED.")
+                .data("APPROVED_SUCCESSFULLY")
+                .build();
+    }
+    @PostMapping("/{requestId}/generate-classes")
+    @PreAuthorize("hasAuthority('CLASS_APPROVE')")
+    @Operation(summary = "Khởi tạo loạt lớp học phần trống và ghim lịch học ban đầu dựa theo số lượng")
+    public ApiResponse<String> generateClasses(
+            @PathVariable Long requestId,
+            @Valid @RequestBody GenerateClassRequestDto generateDto) {
+
+        classOpeningService.generateClassesFromRequest(requestId, generateDto);
+
+        // 🌟 SỬA CHÍNH XÁC DÒNG NÀY: Thay generateDto.getNumberOfClasses() bằng generateDto.getClasses().size()
+        int totalClassesCreated = (generateDto.getClasses() != null) ? generateDto.getClasses().size() : 0;
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Hệ thống đã tự động sinh khởi tạo thành công " + totalClassesCreated + " lớp học phần trống!")
+                .data("CLASSES_GENERATED_SUCCESSFULLY")
                 .build();
     }
 

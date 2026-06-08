@@ -29,12 +29,11 @@ public class ClassOpeningSpecification {
             // tim kiem
             if (filter.getSearch() != null && !filter.getSearch().isBlank()) {
                 String keyword = "%" + filter.getSearch().trim().toLowerCase() + "%";
-                Predicate searchInName = criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), keyword);
-
+                Predicate searchInNote = criteriaBuilder.like(criteriaBuilder.lower(root.get("note")), keyword);
                 // Tìm xuyên bảng thông qua liên kết đã được fetch
                 Predicate searchInSemester = criteriaBuilder.like(criteriaBuilder.lower(root.get("semester").get("semesterCode")), keyword);
 
-                predicates.add(criteriaBuilder.or(searchInName, searchInSemester));
+                predicates.add(criteriaBuilder.or(searchInNote, searchInSemester));
             }
 
             // Sắp xếp đơn mới nhất lên đầu bản ghi

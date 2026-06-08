@@ -34,7 +34,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             "FROM User u " +
             "JOIN u.profile p " + // ✅ Chuẩn khít biến 'profile' trong User.java
             "JOIN u.roles r " +   // ✅ Chuẩn khít biến 'roles' trong User.java
-            "WHERE r.code IN ('HEAD_OF_DEPT', 'INSTRUCTOR') AND u.isActive = true")
+            "WHERE r.code IN ('HEAD_OF_DEPT') AND u.isActive = true")
     List<DropdownResponseDto> findAllActiveLecturers();
 
 

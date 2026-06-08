@@ -41,3 +41,5 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
     """)
     List<com.example.LMS.entity.model.ClassSchedule> findSchedulesByClassId(@Param("classId") Long classId);
 }
+    List<ClassEntity> findByRegistrationPeriodIdAndStatus(Long registrationPeriodId, ClassStatus status);
+}
