@@ -15,6 +15,9 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
 
     List<ClassEntity> findByCourseIdAndDeletedAtIsNull(Long courseId);
 
+    // Lấy lớp theo môn + trạng thái + chưa xóa (dùng cho sinh viên xem đăng ký)
+    List<ClassEntity> findByCourseIdAndStatusAndDeletedAtIsNull(Long courseId, ClassStatus status);
+
     // Đếm số SV đã đăng ký một lớp
     @Query("SELECT COUNT(e) FROM ClassEnrollment e WHERE e.classEntity.id = :classId")
     int countEnrollmentsByClassId(@Param("classId") Long classId);
