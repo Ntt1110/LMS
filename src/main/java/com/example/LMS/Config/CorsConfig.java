@@ -29,4 +29,5 @@ public class CorsConfig {
         mapper.registerModule(new JavaTimeModule());
         return mapper;
     }
+
 }
