@@ -448,6 +448,8 @@ public class ClassOpeningService {
                     .stream()
                     .filter(c -> c.getStatus() == ClassStatus.REGISTRATION)
                     .collect(toList());
+             if (classes.isEmpty()) return null;
+
 
             List<CourseWithClassesResponse.ClassInfo> classSummaries = classes.stream().map(c -> {
                 String lecturerName = c.getLecturerId() != null
@@ -486,8 +488,9 @@ public class ClassOpeningService {
                     .credits(course.getCredits())
                     .classes(classSummaries)
                     .build();
-        }).collect(toList());
+        }).filter(java.util.Objects::nonNull).collect(toList());
     }
+
     // - Tìm kiếm theo mã lớp học phần hoặc tên môn học
     //- Lọc theo học kỳ
     //- Lọc theo trạng thái
