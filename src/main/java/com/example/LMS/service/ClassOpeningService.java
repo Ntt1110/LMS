@@ -50,6 +50,7 @@ public class ClassOpeningService {
      private final DepartmentRepository departmentRepository;
 
 
+
      private final MajorRepository majorRepository;
 
     @Transactional
@@ -456,7 +457,11 @@ public class ClassOpeningService {
 
         return courseRepository.findAll(spec, pageable).map(course -> {
 
-            List<ClassEntity> classes = classRepository.findByCourseIdAndDeletedAtIsNull(course.getId());
+            // Sửa thành:
+            List<ClassEntity> classes = classRepository.findByCourseIdAndDeletedAtIsNull(course.getId())
+                    .stream()
+                    .filter(c -> c.getStatus() == ClassStatus.REGISTRATION)
+                    .collect(toList());
 
             List<CourseWithClassesResponse.ClassInfo> classSummaries = classes.stream().map(c -> {
                 String lecturerName = c.getLecturerId() != null
@@ -465,25 +470,34 @@ public class ClassOpeningService {
                         : "Chưa phân công";
                 int enrolled = classRepository.countEnrollmentsByClassId(c.getId());
 
+                // Thêm vào:
+                var schedules = classScheduleRepository.findByClassId(c.getId());
+                Integer dayOfWeek = null;
+                String shiftName = null;
+                String roomName = null;
+                if (!schedules.isEmpty()) {
+                    var s = schedules.get(0);
+                    dayOfWeek = s.getDayOfWeek();
+                    shiftName = s.getShift() != null ? s.getShift().getName() : null;
+                    roomName = s.getRoom() != null ? s.getRoom().getName() : null;
+                }
+
                 return CourseWithClassesResponse.ClassInfo.builder()
                         .classId(c.getId())
                         .classCode(c.getCode())
-                        .status(c.getStatus() != null ? c.getStatus().name() : null)
-                        .maxStudents(c.getMaxStudents())
-                        .currentStudents(enrolled)
                         .lecturerName(lecturerName)
-                        .semesterCode(c.getSemester().getSemesterCode())
+                        .dayOfWeek(dayOfWeek)
+                        .shiftName(shiftName)
+                        .roomName(roomName)
+                        .currentStudents(enrolled)
+                        .maxStudents(c.getMaxStudents())
                         .build();
             }).collect(toList());
 
             return CourseWithClassesResponse.builder()
                     .courseId(course.getId())
-                    .courseCode(course.getCode())
                     .courseName(course.getName())
                     .credits(course.getCredits())
-                    .theoreticalHours(course.getTheoreticalHours())
-                    .practicalHours(course.getPracticalHours())
-                    .departmentName(course.getDepartment().getName())
                     .classes(classSummaries)
                     .build();
         });
