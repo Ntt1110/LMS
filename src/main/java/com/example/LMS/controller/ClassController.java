@@ -3,6 +3,8 @@ package com.example.LMS.controller;
 import com.example.LMS.dto.request.ClassListRequest;
 import com.example.LMS.dto.response.ClassDetailResponse;
 import com.example.LMS.dto.response.ClassDetailForStudentResponse;
+import com.example.LMS.dto.response.LecturerClassResponse;
+import com.example.LMS.dto.response.LecturerClassDetailResponse;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.service.ClassService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/classes")
@@ -64,15 +67,38 @@ public class ClassController {
     // ============================================================
     @GetMapping("/{classId}/student-detail")
     @PreAuthorize("hasAuthority('COURSE_CLASS_VIEW')")
-    @Operation(
-            summary = "Chi tiết lớp học phần (sinh viên)",
-            description = "Trả về thông tin lớp gồm giảng viên, ca học, phòng học, thứ trong tuần và sĩ số hiện tại."
-    )
+    @Operation(summary = "Chi tiết lớp học phần (sinh viên)")
     public ApiResponse<ClassDetailForStudentResponse> getClassDetailForStudent(@PathVariable Long classId) {
         return ApiResponse.<ClassDetailForStudentResponse>builder()
                 .code(200)
                 .message("Tải chi tiết lớp học phần thành công!")
                 .data(classService.getClassDetailForStudent(classId))
+                .build();
+    }
+
+    // ============================================================
+    // GET /api/v1/classes/my-assigned
+    // Danh sách lớp được phân công — dành cho Giảng viên
+    // ============================================================
+    @GetMapping("/my-assigned")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')")
+    @Operation(summary = "Danh sách lớp được phân công (giảng viên)")
+    public ApiResponse<List<LecturerClassResponse>> getMyAssignedClasses() {
+        return ApiResponse.<List<LecturerClassResponse>>builder()
+                .code(200)
+                .message("Tải danh sách lớp được phân công thành công!")
+                .data(classService.getMyAssignedClasses())
+                .build();
+    }
+
+    @GetMapping("/{classId}/detail-with-students")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')")
+    @Operation(summary = "Chi tiết lớp + danh sách sinh viên (giảng viên)")
+    public ApiResponse<LecturerClassDetailResponse> getAssignedClassDetail(@PathVariable Long classId) {
+        return ApiResponse.<LecturerClassDetailResponse>builder()
+                .code(200)
+                .message("Tải chi tiết lớp học phần thành công!")
+                .data(classService.getAssignedClassDetail(classId))
                 .build();
     }
 }

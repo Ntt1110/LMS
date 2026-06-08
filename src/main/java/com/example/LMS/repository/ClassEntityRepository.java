@@ -33,6 +33,11 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
 
     List<ClassEntity> findBySemesterIdAndStatus(Long semesterId, ClassStatus status);
 
+    List<ClassEntity> findByRegistrationPeriodIdAndStatus(Long registrationPeriodId, ClassStatus status);
+
+    // Lấy danh sách lớp được phân công cho giảng viên
+    List<ClassEntity> findByLecturerIdAndDeletedAtIsNull(Long lecturerId);
+
     // Lấy lịch học của một lớp cụ thể (dùng cho API chi tiết lớp của sinh viên)
     @Query("""
         SELECT cs FROM ClassSchedule cs
@@ -40,6 +45,4 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
         AND cs.deletedAt IS NULL
     """)
     List<com.example.LMS.entity.model.ClassSchedule> findSchedulesByClassId(@Param("classId") Long classId);
-
-    List<ClassEntity> findByRegistrationPeriodIdAndStatus(Long registrationPeriodId, ClassStatus status);
 }
