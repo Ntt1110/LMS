@@ -432,30 +432,16 @@ public class ClassOpeningService {
     }
 
     // phần xem danh sách môn học và lớp học cho Sinh viên
-    public Page<CourseWithClassesResponse> getCoursesWithClasses(
-            String keyword, Long departmentId, int page, int size) {
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+    public List<CourseWithClassesResponse> getCoursesWithClasses() {
 
         Specification<Course> spec = (root, query, cb) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-
-            if (keyword != null && !keyword.isBlank()) {
-                String pattern = "%" + keyword.trim().toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("code")), pattern),
-                        cb.like(cb.lower(root.get("name")), pattern)
-                ));
-            }
-            if (departmentId != null) {
-                predicates.add(cb.equal(root.get("department").get("id"), departmentId));
-            }
             predicates.add(cb.equal(root.get("status"), Course.Status.APPROVED));
             predicates.add(cb.isNull(root.get("deletedAt")));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
 
-        return courseRepository.findAll(spec, pageable).map(course -> {
+        return courseRepository.findAll(spec, Sort.by("name").ascending()).stream().map(course -> {
 
             // Sửa thành:
             List<ClassEntity> classes = classRepository.findByCourseIdAndDeletedAtIsNull(course.getId())
@@ -500,7 +486,7 @@ public class ClassOpeningService {
                     .credits(course.getCredits())
                     .classes(classSummaries)
                     .build();
-        });
+        }).collect(toList());
     }
     // - Tìm kiếm theo mã lớp học phần hoặc tên môn học
     //- Lọc theo học kỳ
