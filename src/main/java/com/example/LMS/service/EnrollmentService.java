@@ -25,6 +25,7 @@ public class EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
     private final ClassEntityRepository classEntityRepository;
+    private final ClassScheduleRepository classScheduleRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final CourseRepository courseRepository;
@@ -119,25 +120,30 @@ public class EnrollmentService {
     // HELPER
     // ============================================================
     private EnrollmentResponse buildResponse(ClassEnrollment enrollment, ClassEntity classEntity) {
-        String courseName = courseRepository.findNameById(classEntity.getCourseId()).orElse("N/A");
-        String courseCode = courseRepository.findById(classEntity.getCourseId())
-                .map(c -> c.getCode()).orElse("N/A");
-        Integer credits = courseRepository.findById(classEntity.getCourseId())
-                .map(c -> c.getCredits()).orElse(null);
-        String lecturerName = classEntity.getLecturerId() != null
-                ? userProfileRepository.findByUserId(classEntity.getLecturerId())
-                .map(p -> p.getFullName()).orElse("Chưa phân công")
-                : "Chưa phân công";
+        var course = courseRepository.findById(classEntity.getCourseId()).orElse(null);
+
+        // Lấy lịch học của lớp (thứ, ca, phòng)
+        var schedules = classScheduleRepository.findByClassId(classEntity.getId());
+        Integer dayOfWeek = null;
+        String shiftName = null;
+        String roomName = null;
+        if (!schedules.isEmpty()) {
+            var s = schedules.get(0);
+            dayOfWeek = s.getDayOfWeek();
+            shiftName = s.getShift() != null ? s.getShift().getName() : null;
+            roomName = s.getRoom() != null ? s.getRoom().getName() : null;
+        }
 
         return EnrollmentResponse.builder()
-                .enrollmentId(enrollment.getId())
+                .courseId(course != null ? course.getId() : null)
+                .courseCode(course != null ? course.getCode() : "N/A")
+                .courseName(course != null ? course.getName() : "N/A")
+                .credits(course != null ? course.getCredits() : null)
                 .classId(classEntity.getId())
                 .classCode(classEntity.getCode())
-                .courseName(courseName)
-                .courseCode(courseCode)
-                .credits(credits)
-                .lecturerName(lecturerName)
-                .semesterCode(classEntity.getSemester().getSemesterCode())
+                .dayOfWeek(dayOfWeek)
+                .shiftName(shiftName)
+                .roomName(roomName)
                 .status(enrollment.getStatus().name())
                 .enrolledAt(enrollment.getEnrolledAt())
                 .build();
