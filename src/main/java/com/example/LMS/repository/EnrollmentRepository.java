@@ -19,4 +19,7 @@ public interface EnrollmentRepository extends JpaRepository<ClassEnrollment, Lon
 
     // Lấy toàn bộ lớp đã đăng ký của sinh viên (không bị DROPPED)
     List<ClassEnrollment> findByStudentIdAndStatusNot(Long studentId, EnrollmentStatus status);
+
+    // Lấy danh sách sinh viên của một lớp (không bị DROPPED) — dùng cho giảng viên xem
+    List<ClassEnrollment> findByClassEntityIdAndStatusNot(Long classId, EnrollmentStatus status);
 }

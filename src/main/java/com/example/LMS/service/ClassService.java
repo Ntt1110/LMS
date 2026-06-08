@@ -3,11 +3,16 @@ package com.example.LMS.service;
 import com.example.LMS.dto.request.ClassListRequest;
 import com.example.LMS.dto.response.ClassDetailResponse;
 import com.example.LMS.dto.response.ClassDetailForStudentResponse;
+import com.example.LMS.dto.response.LecturerClassResponse;
+import com.example.LMS.dto.response.LecturerClassDetailResponse;
 import com.example.LMS.entity.Enum.ClassStatus;
+import com.example.LMS.entity.Enum.EnrollmentStatus;
 import com.example.LMS.entity.model.ClassEntity;
 import com.example.LMS.entity.model.ClassSchedule;
 import com.example.LMS.entity.model.Course;
 import com.example.LMS.entity.model.User;
+import com.example.LMS.entity.model.UserProfile;
+import com.example.LMS.entity.model.StudentProfile;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -29,9 +34,12 @@ import java.util.stream.Collectors;
 public class ClassService {
 
     private final ClassEntityRepository classRepository;
+    private final ClassScheduleRepository classScheduleRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final StudentProfileRepository studentProfileRepository;
 
     public Page<ClassDetailResponse> getClasses(ClassListRequest request) {
 
@@ -196,6 +204,111 @@ public class ClassService {
                 .credits(course != null ? course.getCredits() : null)
                 .lecturerName(lecturerName)
                 .schedules(scheduleInfos)
+                .build();
+    }
+
+    // ============================================================
+    // DANH SÁCH LỚP ĐƯỢC PHÂN CÔNG (Giảng viên)
+    // GET /api/v1/classes/my-assigned
+    // ============================================================
+    public List<LecturerClassResponse> getMyAssignedClasses() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var lecturer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        List<ClassEntity> classes = classRepository.findByLecturerIdAndDeletedAtIsNull(lecturer.getId());
+
+        return classes.stream().map(c -> {
+            String courseName = courseRepository.findNameById(c.getCourseId()).orElse("N/A");
+            int enrolled = classRepository.countEnrollmentsByClassId(c.getId());
+
+            var schedules = classScheduleRepository.findByClassId(c.getId());
+            Integer dayOfWeek = null;
+            String shiftName = null;
+            String roomName = null;
+            if (!schedules.isEmpty()) {
+                var s = schedules.get(0);
+                dayOfWeek = s.getDayOfWeek();
+                shiftName = s.getShift() != null ? s.getShift().getName() : null;
+                roomName = s.getRoom() != null ? s.getRoom().getName() : null;
+            }
+
+            return LecturerClassResponse.builder()
+                    .classId(c.getId())
+                    .classCode(c.getCode())
+                    .courseName(courseName)
+                    .semesterCode(c.getSemester().getSemesterCode())
+                    .status(c.getStatus() != null ? c.getStatus().name() : null)
+                    .maxStudents(c.getMaxStudents())
+                    .currentStudents(enrolled)
+                    .dayOfWeek(dayOfWeek)
+                    .shiftName(shiftName)
+                    .roomName(roomName)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    // ============================================================
+    // CHI TIẾT LỚP + DANH SÁCH SINH VIÊN (Giảng viên)
+    // GET /api/v1/classes/{classId}/detail-with-students
+    // ============================================================
+    public LecturerClassDetailResponse getAssignedClassDetail(Long classId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var lecturer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        ClassEntity c = classRepository.findById(classId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy lớp học phần!"));
+
+        if (!lecturer.getId().equals(c.getLecturerId())) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "Bạn không được phân công dạy lớp này!");
+        }
+
+        var course = courseRepository.findById(c.getCourseId()).orElse(null);
+        int enrolled = classRepository.countEnrollmentsByClassId(c.getId());
+
+        var scheduleList = classScheduleRepository.findByClassId(c.getId());
+        Integer dayOfWeek = null;
+        String shiftName = null;
+        String roomName = null;
+        if (!scheduleList.isEmpty()) {
+            var s = scheduleList.get(0);
+            dayOfWeek = s.getDayOfWeek();
+            shiftName = s.getShift() != null ? s.getShift().getName() : null;
+            roomName = s.getRoom() != null ? s.getRoom().getName() : null;
+        }
+
+        List<LecturerClassDetailResponse.StudentInfo> students =
+                enrollmentRepository.findByClassEntityIdAndStatusNot(classId, EnrollmentStatus.DROPPED)
+                        .stream().map(e -> {
+                            var profile = userProfileRepository.findByUserId(e.getStudentId()).orElse(null);
+                            var studentProfile = studentProfileRepository.findByUserId(e.getStudentId()).orElse(null);
+                            var user = userRepository.findById(e.getStudentId()).orElse(null);
+
+                            return LecturerClassDetailResponse.StudentInfo.builder()
+                                    .studentId(e.getStudentId())
+                                    .fullName(profile != null ? profile.getFullName() : "N/A")
+                                    .studentCode(studentProfile != null ? studentProfile.getStudentCode() : "N/A")
+                                    .email(user != null ? user.getEmail() : "N/A")
+                                    .enrollmentStatus(e.getStatus().name())
+                                    .enrolledAt(e.getEnrolledAt())
+                                    .build();
+                        }).collect(Collectors.toList());
+
+        return LecturerClassDetailResponse.builder()
+                .classId(c.getId())
+                .classCode(c.getCode())
+                .courseName(course != null ? course.getName() : "N/A")
+                .courseCode(course != null ? course.getCode() : "N/A")
+                .credits(course != null ? course.getCredits() : null)
+                .semesterCode(c.getSemester().getSemesterCode())
+                .status(c.getStatus() != null ? c.getStatus().name() : null)
+                .maxStudents(c.getMaxStudents())
+                .currentStudents(enrolled)
+                .dayOfWeek(dayOfWeek)
+                .shiftName(shiftName)
+                .roomName(roomName)
+                .students(students)
                 .build();
     }
 }
