@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -19,4 +20,6 @@ public class LessonResponseDto {
     private Integer orderIndex;
     private Boolean isPublished;
     private LocalDateTime createdAt;
+
+    private List<LessonMaterialResponseDto> materials;
 }

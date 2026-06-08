@@ -1,6 +1,7 @@
 package com.example.LMS.service;
 
 import com.example.LMS.dto.request.CreateLessonRequestDto;
+import com.example.LMS.dto.response.LessonMaterialResponseDto;
 import com.example.LMS.dto.response.LessonResponseDto;
 import com.example.LMS.entity.model.ClassEntity;
 import com.example.LMS.entity.model.Lesson;
@@ -42,17 +43,76 @@ public class LessonService {
         // 2. Kéo loạt bài học từ Repository lên
         List<Lesson> lessons = lessonRepository.findByClassEntityIdAndDeletedAtIsNullOrderByOrderIndexAsc(classId);
 
-        // 3. Map danh sách sang DTO để dọn đường cho Frontend Vue 3 render
-        return lessons.stream().map(lesson -> LessonResponseDto.builder()
-                .id(lesson.getId())
-                .classId(lesson.getClassEntity().getId())
-                .title(lesson.getTitle())
-                .description(lesson.getDescription())
-                .orderIndex(lesson.getOrderIndex())
-                .isPublished(lesson.getIsPublished())
-                .createdAt(lesson.getCreatedAt())
-                .build()
-        ).collect(Collectors.toList());
+        // Duyệt từng bài học và nhét file vào
+        return lessons.stream().map(lesson -> {
+
+            // 🔍 Tìm toàn bộ file thuộc bài học này
+            List<LessonMaterial> materials = materialRepository.findByLessonIdAndDeletedAtIsNull(lesson.getId());
+
+            // Ép kiểu File Entity sang File DTO
+            List<LessonMaterialResponseDto> materialDtos = materials.stream().map(mat ->
+                    LessonMaterialResponseDto.builder()
+                            .id(mat.getId())
+                            .fileName(mat.getFileName())
+                            .fileUrl(mat.getFileUrl())
+                            .fileType(mat.getFileType())
+                            .fileSize(mat.getFileSize())
+                            .build()
+            ).collect(Collectors.toList());
+
+            // Đóng gói tất cả trả về
+            return LessonResponseDto.builder()
+                    .id(lesson.getId())
+                    .classId(lesson.getClassEntity().getId())
+                    .title(lesson.getTitle())
+                    .description(lesson.getDescription())
+                    .orderIndex(lesson.getOrderIndex())
+                    .isPublished(lesson.getIsPublished())
+                    .createdAt(lesson.getCreatedAt())
+                    .materials(materialDtos) // 🌟 Gắn mảng danh sách file vào đây
+                    .build();
+        }).collect(Collectors.toList());
+    }
+    // =========================================================================
+    // 2. DÀNH CHO SINH VIÊN (Chỉ xem bài Published KÈM FILE)
+    // =========================================================================
+    @Transactional(readOnly = true)
+    public List<LessonResponseDto> getPublishedLessonsForStudent(Long classId) {
+        log.info("🎓 Sinh viên đang tải danh sách bài học (Đã xuất bản) kèm file của lớp ID: {}", classId);
+
+        if (!classRepository.existsById(classId)) {
+            throw new CustomException(HttpStatus.NOT_FOUND, "Lớp học phần không tồn tại!");
+        }
+
+        // Lọc bài học có isPublished = true
+        List<Lesson> lessons = lessonRepository.findPublishedLessonsByClassId(classId);
+
+        return lessons.stream().map(lesson -> {
+
+            // 🔍 Tìm toàn bộ file thuộc bài học này
+            List<LessonMaterial> materials = materialRepository.findByLessonIdAndDeletedAtIsNull(lesson.getId());
+
+            List<LessonMaterialResponseDto> materialDtos = materials.stream().map(mat ->
+                    LessonMaterialResponseDto.builder()
+                            .id(mat.getId())
+                            .fileName(mat.getFileName())
+                            .fileUrl(mat.getFileUrl())
+                            .fileType(mat.getFileType())
+                            .fileSize(mat.getFileSize())
+                            .build()
+            ).collect(Collectors.toList());
+
+            return LessonResponseDto.builder()
+                    .id(lesson.getId())
+                    .classId(lesson.getClassEntity().getId())
+                    .title(lesson.getTitle())
+                    .description(lesson.getDescription())
+                    .orderIndex(lesson.getOrderIndex())
+                    .isPublished(lesson.getIsPublished())
+                    .createdAt(lesson.getCreatedAt())
+                    .materials(materialDtos)
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     @Transactional
@@ -95,5 +155,12 @@ public class LessonService {
         }
 
         log.info("✅ Hoàn tất tạo bài học: {}", dto.getTitle());
+    }
+
+    // 🌟 HÀM PHỤC VỤ DOWNLOAD: Lấy thông tin chi tiết của 1 File đính kèm
+    @Transactional(readOnly = true)
+    public LessonMaterial getMaterialById(Long materialId) {
+        return materialRepository.findById(materialId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Tài liệu đính kèm không tồn tại!"));
     }
 }
