@@ -20,19 +20,40 @@ public class ScheduleService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final CourseRepository courseRepository;
+    private final ClassEntityRepository classEntityRepository;
+    private final ClassScheduleRepository classScheduleRepository;
+
+    // ============================================================
+    // Tính số tuần học của lớp
+    // Công thức: (theoreticalHours + practicalHours) / 3 / sessionsPerWeek
+    // ============================================================
+    private Integer calculateTotalWeeks(Long classId, Long courseId) {
+        // 1. Lấy tổng tiết của môn học
+        var course = courseRepository.findById(courseId).orElse(null);
+        if (course == null) return null;
+
+        int totalHours = (course.getTheoreticalHours() != null ? course.getTheoreticalHours() : 0)
+                + (course.getPracticalHours() != null ? course.getPracticalHours() : 0);
+
+        if (totalHours == 0) return null;
+
+        // 2. Đếm số buổi học/tuần của lớp (số lịch trong class_schedules)
+        int sessionsPerWeek = classScheduleRepository.findByClassId(classId).size();
+        if (sessionsPerWeek == 0) return null;
+
+        // 3. Tính số tuần: tổng tiết / 3 (tiết/buổi) / số buổi/tuần
+        return (int) Math.ceil((double) totalHours / 3 / sessionsPerWeek);
+    }
 
     public List<ScheduleResponse> getMySchedule() {
 
-        // 1. Lấy sinh viên đang đăng nhập
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         var student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
 
-        // 2. Lấy toàn bộ lịch học của sinh viên
         List<ClassSchedule> schedules = scheduleRepositoryStudent
                 .findSchedulesByStudentId(student.getId());
 
-        // 3. Map sang DTO
         return schedules.stream().map(cs -> {
             var classEntity = cs.getClassEntity();
 
@@ -43,6 +64,8 @@ public class ScheduleService {
                     .map(p -> p.getFullName()).orElse("Chưa phân công")
                     : "Chưa phân công";
 
+            Integer totalWeeks = calculateTotalWeeks(classEntity.getId(), classEntity.getCourseId());
+
             return ScheduleResponse.builder()
                     .courseName(courseName)
                     .classCode(classEntity.getCode())
@@ -52,6 +75,7 @@ public class ScheduleService {
                     .startTime(cs.getShift().getStartTime())
                     .endTime(cs.getShift().getEndTime())
                     .lecturerName(lecturerName)
+                    .totalWeeks(totalWeeks)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -62,7 +86,6 @@ public class ScheduleService {
         var lecturer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
 
-        // Lấy lịch dạy theo lecturerId
         List<ClassSchedule> schedules = scheduleRepositoryStudent
                 .findSchedulesByLecturerId(lecturer.getId());
 
@@ -71,6 +94,8 @@ public class ScheduleService {
 
             String courseName = courseRepository.findNameById(classEntity.getCourseId())
                     .orElse("N/A");
+
+            Integer totalWeeks = calculateTotalWeeks(classEntity.getId(), classEntity.getCourseId());
 
             return ScheduleResponse.builder()
                     .courseName(courseName)
@@ -81,6 +106,7 @@ public class ScheduleService {
                     .startTime(cs.getShift().getStartTime())
                     .endTime(cs.getShift().getEndTime())
                     .lecturerName(null) // không hiện tên giảng viên
+                    .totalWeeks(totalWeeks)
                     .build();
         }).collect(Collectors.toList());
     }
