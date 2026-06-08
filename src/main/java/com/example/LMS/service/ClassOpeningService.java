@@ -443,11 +443,10 @@ public class ClassOpeningService {
 
         return courseRepository.findAll(spec, Sort.by("name").ascending()).stream().map(course -> {
 
-            // Sửa thành:
-            List<ClassEntity> classes = classRepository.findByCourseIdAndDeletedAtIsNull(course.getId())
-                    .stream()
-                    .filter(c -> c.getStatus() == ClassStatus.REGISTRATION)
-                    .collect(toList());
+            // Sửa thành:\\
+            // 1 dòng này:
+            List<ClassEntity> classes = classRepository
+                    .findByCourseIdAndStatusAndDeletedAtIsNull(course.getId(), ClassStatus.REGISTRATION);
              if (classes.isEmpty()) return null;
 
 
