@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Getter
@@ -18,5 +19,6 @@ public class ScheduleResponse {
     private LocalTime startTime;    // Thời gian bắt đầu
     private LocalTime endTime;      // Thời gian kết thúc
     private String lecturerName;    // Tên giảng viên (null với giảng viên)
-    private Integer totalWeeks;     // Thời khóa biểu kéo dài bao nhiêu tuần
+    private Integer totalWeeks;
+    private LocalDateTime startDate;// Thời khóa biểu kéo dài bao nhiêu tuần
 }
