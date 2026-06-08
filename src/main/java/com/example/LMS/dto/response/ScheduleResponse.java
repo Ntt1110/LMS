@@ -18,4 +18,5 @@ public class ScheduleResponse {
     private LocalTime startTime;    // Thời gian bắt đầu
     private LocalTime endTime;      // Thời gian kết thúc
     private String lecturerName;    // Tên giảng viên (null với giảng viên)
+    private Integer totalWeeks;     // Thời khóa biểu kéo dài bao nhiêu tuần
 }
