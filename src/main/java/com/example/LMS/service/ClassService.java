@@ -1,10 +1,7 @@
 package com.example.LMS.service;
 
 import com.example.LMS.dto.request.ClassListRequest;
-import com.example.LMS.dto.response.ClassDetailResponse;
-import com.example.LMS.dto.response.ClassDetailForStudentResponse;
-import com.example.LMS.dto.response.LecturerClassResponse;
-import com.example.LMS.dto.response.LecturerClassDetailResponse;
+import com.example.LMS.dto.response.*;
 import com.example.LMS.entity.Enum.ClassStatus;
 import com.example.LMS.entity.Enum.EnrollmentStatus;
 import com.example.LMS.entity.model.ClassEntity;
@@ -318,5 +315,30 @@ public class ClassService {
                 .roomName(roomName)
                 .students(students)
                 .build();
+    }
+
+    // ============================================================
+    // DANH SÁCH SINH VIÊN CỦA LỚP (đơn giản)
+    // GET /api/v1/classes/{classId}/students
+    // ============================================================
+    public List<StudentOfClassResponse> getStudentsOfClass(Long classId) {
+        classRepository.findById(classId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy lớp học phần!"));
+
+        return enrollmentRepository.findByClassEntityIdAndStatusNot(classId, EnrollmentStatus.DROPPED)
+                .stream().map(e -> {
+                    var profile = userProfileRepository.findByUserId(e.getStudentId()).orElse(null);
+                    var studentProfile = studentProfileRepository.findByUserId(e.getStudentId()).orElse(null);
+                    var user = userRepository.findById(e.getStudentId()).orElse(null);
+
+                    return StudentOfClassResponse.builder()
+                            .studentId(e.getStudentId())
+                            .fullName(profile != null ? profile.getFullName() : "N/A")
+                            .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                            .studentCode(studentProfile != null ? studentProfile.getStudentCode() : "N/A")
+                            .email(user != null ? user.getEmail() : "N/A")
+                            .enrollmentStatus(e.getStatus().name())
+                            .build();
+                }).collect(Collectors.toList());
     }
 }

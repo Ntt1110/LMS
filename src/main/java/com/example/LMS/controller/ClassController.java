@@ -5,6 +5,7 @@ import com.example.LMS.dto.response.ClassDetailResponse;
 import com.example.LMS.dto.response.ClassDetailForStudentResponse;
 import com.example.LMS.dto.response.LecturerClassResponse;
 import com.example.LMS.dto.response.LecturerClassDetailResponse;
+import com.example.LMS.dto.response.StudentOfClassResponse;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.service.ClassService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -100,6 +101,21 @@ public class ClassController {
                 .code(200)
                 .message("Tải chi tiết lớp học phần thành công!")
                 .data(classService.getAssignedClassDetail(classId))
+                .build();
+    }
+
+    // ============================================================
+    // GET /api/v1/classes/{classId}/students
+    // Danh sách sinh viên của lớp (đơn giản)
+    // ============================================================
+    @GetMapping("/{classId}/students")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')")
+    @Operation(summary = "Danh sách sinh viên của lớp")
+    public ApiResponse<List<StudentOfClassResponse>> getStudentsOfClass(@PathVariable Long classId) {
+        return ApiResponse.<List<StudentOfClassResponse>>builder()
+                .code(200)
+                .message("Tải danh sách sinh viên thành công!")
+                .data(classService.getStudentsOfClass(classId))
                 .build();
     }
 }
