@@ -146,7 +146,7 @@ public class ExamService {
                     "Chi co the mo bai kiem tra dang o trang thai DRAFT! Trang thai hien tai: " + exam.getStatus());
         }
 
-        exam.setStatus(ExamStatus.PUBLISHED);
+        exam.setStatus(ExamStatus.OPEN);
         Exam saved = examRepository.save(exam);
         log.info("Da mo bai kiem tra: {}", saved.getTitle());
 
@@ -167,7 +167,7 @@ public class ExamService {
             throw new CustomException(HttpStatus.BAD_REQUEST, "Bai kiem tra khong thuoc lop nay!");
         }
 
-        if (exam.getStatus() != ExamStatus.PUBLISHED) {
+        if (exam.getStatus() != ExamStatus.OPEN) {
             throw new CustomException(HttpStatus.BAD_REQUEST,
                     "Chi co the dong bai kiem tra dang o trang thai PUBLISHED! Trang thai hien tai: " + exam.getStatus());
         }
