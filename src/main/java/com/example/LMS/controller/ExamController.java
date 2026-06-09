@@ -2,10 +2,7 @@ package com.example.LMS.controller;
 
 
 import com.example.LMS.dto.request.CreateExamRequestDto;
-import com.example.LMS.dto.response.ApiResponse;
-import com.example.LMS.dto.response.ExamAttemptResponseDto;
-import com.example.LMS.dto.response.ExamPaperResponseDto;
-import com.example.LMS.dto.response.ExamResponseDto;
+import com.example.LMS.dto.response.*;
 import com.example.LMS.service.ExamService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -129,6 +126,38 @@ public class ExamController {
                 .code(200)
                 .message("Tải đề thi thành công! Chúc bạn làm bài tốt.")
                 .data(examService.getExamPaperForStudent(examId))
+                .build();
+    }
+
+    // =========================================================================
+    //   NỘP BÀI CHỦ ĐỘNG (Sinh viên tự bấm nút nộp)
+    // =========================================================================
+    @PostMapping("/attempts/{attemptId}/submit")
+    @PreAuthorize("hasAuthority('EXAM_VIEW')")
+    @Operation(summary = "Sinh viên chủ động nộp bài (Hệ thống sẽ check và quăng cảnh báo nếu còn câu trống)")
+    public ApiResponse<ExamResultResponseDto> submitExam(
+            @PathVariable Long attemptId,
+            @RequestParam(defaultValue = "false") boolean acceptIncomplete) {
+
+        return ApiResponse.<ExamResultResponseDto>builder()
+                .code(200)
+                .message("Nộp bài thành công!")
+                .data(examService.submitExamAttempt(attemptId, acceptIncomplete)) // Luồng có check câu trống
+                .build();
+    }
+
+    // =========================================================================
+    //  NỘP BÀI TỰ ĐỘNG TỪ FRONTEND (Đồng hồ đếm ngược về 0)
+    // =========================================================================
+    @PostMapping("/attempts/{attemptId}/force-submit")
+    @PreAuthorize("hasAuthority('EXAM_VIEW')")
+    @Operation(summary = "Ép nộp bài khi hết giờ (Frontend gọi khi đồng hồ về 0, chấm điểm bất chấp câu trống)")
+    public ApiResponse<ExamResultResponseDto> forceSubmitExam(@PathVariable Long attemptId) {
+
+        return ApiResponse.<ExamResultResponseDto>builder()
+                .code(200)
+                .message("Hết giờ làm bài! Hệ thống đã tự động thu bài của bạn.")
+                .data(examService.forceSubmitExamAttempt(attemptId)) // Luồng cưỡng chế, chuyển trạng thái thành FORCED
                 .build();
     }
 }

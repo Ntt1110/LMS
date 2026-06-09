@@ -3,8 +3,11 @@ package com.example.LMS.service;
 import com.example.LMS.dto.request.CreateExamRequestDto;
 import com.example.LMS.dto.response.ExamAttemptResponseDto;
 import com.example.LMS.dto.response.ExamPaperResponseDto;
+import com.example.LMS.dto.response.ExamResultResponseDto;
+import com.example.LMS.entity.Enum.AttemptStatus;
 import com.example.LMS.entity.Enum.ExamStatus;
 import com.example.LMS.dto.response.ExamResponseDto;
+import com.example.LMS.entity.StudentExamAnswer;
 import com.example.LMS.entity.model.*;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.*;
@@ -30,6 +33,8 @@ public class ExamService {
 
      private final StudentExamAttemptRepository attemptRepository;
      private final UserRepository userRepository;
+
+     private final StudentExamAnswerRepository answerRepository;
     // =========================================================================
     // 🌟 1. LUỒNG GIẢNG VIÊN: XEM TẤT CẢ BÀI KIỂM TRA
     // =========================================================================
@@ -316,5 +321,99 @@ public class ExamService {
                 .totalQuestions(exam.getTotalQuestions())
                 .questions(questionDtos)
                 .build();
+    }
+
+    // =========================================================================
+    @Transactional
+    public ExamResultResponseDto submitExamAttempt(Long attemptId, boolean acceptIncomplete) {
+        StudentExamAttempt attempt = getValidatedAttempt(attemptId);
+
+        // 1. 🔍 KIỂM TRA SỐ CÂU CHƯA HOÀN THÀNH
+        int totalQuestions = attempt.getExam().getTotalQuestions();
+
+        // Vét số lượng câu sinh viên ĐÃ LÀM nháp trong DB
+        int answeredCount = answerRepository.findByAttemptId(attemptId).size();
+        int unansweredCount = totalQuestions - answeredCount;
+
+        // 2. Nếu còn câu chưa làm VÀ sinh viên chưa bấm xác nhận "Nộp bất chấp"
+        if (unansweredCount > 0 && !acceptIncomplete) {
+            log.warn("⚠️ Sinh viên còn {} câu chưa làm. Thả xích gửi thông báo yêu cầu xác nhận!", unansweredCount);
+
+            // Ném Exception kèm mã lỗi và số câu chưa làm để Frontend Vue 3 bắt được bắt Popup
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "LEAVE_BLANK_WARNING:" + unansweredCount
+            );
+        }
+
+        // 3. Nếu mọi thứ OK hoặc sinh viên đã bấm "Vẫn nộp" -> Tiến hành chấm điểm
+        return processGrading(attempt, AttemptStatus.COMPLETED);
+    }
+
+    @Transactional
+    public ExamResultResponseDto forceSubmitExamAttempt(Long attemptId) {
+        StudentExamAttempt attempt = getValidatedAttempt(attemptId);
+        log.warn("⏰  báo hết giờ! Hệ thống ép nộp bài cho Attempt ID: {}", attemptId);
+        return processGrading(attempt, AttemptStatus.FORCED); // Chốt trạng thái bị ép nộp
+    }
+    private ExamResultResponseDto processGrading(StudentExamAttempt attempt, AttemptStatus targetStatus) {
+        if (attempt.getStatus() != AttemptStatus.IN_PROGRESS) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Bài thi này đã kết thúc hoặc đã được nộp trước đó!");
+        }
+
+        Exam exam = attempt.getExam();
+        int totalQuestions = exam.getTotalQuestions();
+        if (totalQuestions == 0) {
+            throw new CustomException(HttpStatus.INTERNAL_SERVER_ERROR, "Đề thi bị lỗi: Không có câu hỏi nào!");
+        }
+
+        // Vét sạch đáp án nháp của sinh viên trong DB
+        List<StudentExamAnswer> studentAnswers = answerRepository.findByAttemptId(attempt.getId());
+
+        int correctCount = 0;
+        for (StudentExamAnswer answer : studentAnswers) {
+            if (answer.getSelectedOption().getIsCorrect()) {
+                correctCount++;
+            }
+        }
+
+        // Tính điểm thang 10
+        double rawScore = ((double) correctCount / totalQuestions) * 10.0;
+        double finalScore = Math.round(rawScore * 100.0) / 100.0;
+
+        // Cập nhật record phiên làm bài
+        attempt.setStatus(targetStatus); // Lưu COMPLETED hoặc FORCED tùy luồng gọi
+        attempt.setSubmitTime(LocalDateTime.now());
+        attempt.setScore(finalScore);
+        attemptRepository.save(attempt);
+
+        return ExamResultResponseDto.builder()
+                .attemptId(attempt.getId())
+                .score(finalScore)
+                .correctAnswers(correctCount)
+                .totalQuestions(totalQuestions)
+                .submitTime(attempt.getSubmitTime())
+                .status(attempt.getStatus().name())
+                .build();
+    }
+    private StudentExamAttempt getValidatedAttempt(Long attemptId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long studentId = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "Tài khoản không hợp lệ!"))
+                .getId();
+
+        StudentExamAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên làm bài!"));
+
+        if (!attempt.getStudentId().equals(studentId)) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên bài thi của người khác!");
+        }
+        return attempt;
+    }
+    @Transactional
+    public void forceSubmitExamAttemptFromScheduler(Long attemptId) {
+        StudentExamAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên làm bài!"));
+        processGrading(attempt, AttemptStatus.FORCED);
     }
 }
