@@ -34,11 +34,11 @@ public class EnrollmentController {
 
     @GetMapping("/my")
     @PreAuthorize("hasAuthority('ENROLLMENT_VIEW')")
-    @Operation(summary = "Danh sách học phần đã đăng ký")
+    @Operation(summary = "Danh sách lớp đang học và đã hoàn thành của sinh viên")
     public ApiResponse<List<EnrollmentResponse>> getMyEnrollments() {
         return ApiResponse.<List<EnrollmentResponse>>builder()
                 .code(200)
-                .message("Tải danh sách học phần đã đăng ký thành công!")
+                .message("Tải danh sách học phần thành công!")
                 .data(enrollmentService.getMyEnrollments())
                 .build();
     }
