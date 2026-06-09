@@ -149,7 +149,7 @@ public class EnrollmentService {
                 .dayOfWeek(dayOfWeek)
                 .shiftName(shiftName)
                 .roomName(roomName)
-                .status(enrollment.getStatus().name())
+                .status(classEntity.getStatus().name())
                 .enrolledAt(enrollment.getEnrolledAt())
                 .build();
     }
