@@ -94,7 +94,7 @@ public class ExamService {
                 .examType(dto.getExamType())
                 .timeLimit(dto.getTimeLimit())
                 .totalQuestions(totalQuestions) // Tự động tính tổng số câu hỏi từ mảng gửi lên
-                .status(com.example.LMS.entity.Enum.ExamStatus.DRAFT) // Mặc định là Nháp
+                .status(com.example.LMS.entity.Enum.ExamStatus.CREATED) // Mặc định là Nháp
                 .build();
 
         Exam savedExam = examRepository.save(newExam);
@@ -141,7 +141,7 @@ public class ExamService {
             throw new CustomException(HttpStatus.BAD_REQUEST, "Bai kiem tra khong thuoc lop nay!");
         }
 
-        if (exam.getStatus() != ExamStatus.DRAFT) {
+        if (exam.getStatus() != ExamStatus.CREATED) {
             throw new CustomException(HttpStatus.BAD_REQUEST,
                     "Chi co the mo bai kiem tra dang o trang thai DRAFT! Trang thai hien tai: " + exam.getStatus());
         }
