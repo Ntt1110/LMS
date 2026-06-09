@@ -113,11 +113,11 @@ public class GradeService {
                     .studentCode(studentProfile != null ? studentProfile.getStudentCode() : "N/A")
                     .fullName(profile != null ? profile.getFullName() : "N/A")
                     .email(user != null ? user.getEmail() : "N/A")
-                    .regularScore1(gradeOpt.map(g -> g.getRegularScore1()).orElse(null))
-                    .regularScore2(gradeOpt.map(g -> g.getRegularScore2()).orElse(null))
-                    .midtermScore(gradeOpt.map(g -> g.getMidtermScore()).orElse(null))
-                    .finalScore(gradeOpt.map(g -> g.getFinalScore()).orElse(null))
-                    .totalScore(gradeOpt.map(g -> g.getTotalScore()).orElse(null))
+                    .regularScore1(gradeOpt.map(g -> g.getRegularScore1() != null ? g.getRegularScore1() : 0.0).orElse(0.0))
+                    .regularScore2(gradeOpt.map(g -> g.getRegularScore2() != null ? g.getRegularScore2() : 0.0).orElse(0.0))
+                    .midtermScore(gradeOpt.map(g -> g.getMidtermScore() != null ? g.getMidtermScore() : 0.0).orElse(0.0))
+                    .finalScore(gradeOpt.map(g -> g.getFinalScore() != null ? g.getFinalScore() : 0.0).orElse(0.0))
+                    .totalScore(gradeOpt.map(g -> g.getTotalScore() != null ? g.getTotalScore() : 0.0).orElse(0.0))
                     .status(gradeOpt.map(g -> g.getStatus() != null ? g.getStatus().name() : "PENDING").orElse("PENDING"))
                     .build();
 
