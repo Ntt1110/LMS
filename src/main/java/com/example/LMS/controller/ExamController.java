@@ -67,4 +67,38 @@ public class ExamController {
                 .data("EXAM_CREATED")
                 .build();
     }
+
+    // =========================================================================
+    // API 3: MO BAI KIEM TRA (DRAFT -> PUBLISHED)
+    // =========================================================================
+    @PutMapping("/classes/{classId}/exams/{examId}/open")
+    @PreAuthorize("hasAuthority('EXAM_OPEN')")
+    @Operation(summary = "Mo bai kiem tra - chuyen tu DRAFT sang PUBLISHED (sinh vien thay duoc)")
+    public ApiResponse<ExamResponseDto> openExam(
+            @PathVariable Long classId,
+            @PathVariable Long examId) {
+
+        return ApiResponse.<ExamResponseDto>builder()
+                .code(200)
+                .message("Mo bai kiem tra thanh cong!")
+                .data(examService.openExam(classId, examId))
+                .build();
+    }
+
+    // =========================================================================
+    // API 4: DONG BAI KIEM TRA (PUBLISHED -> CLOSED)
+    // =========================================================================
+    @PutMapping("/classes/{classId}/exams/{examId}/close")
+    @PreAuthorize("hasAuthority('EXAM_CLOSE')")
+    @Operation(summary = "Dong bai kiem tra - chuyen tu PUBLISHED sang CLOSED (ket thuc lam bai)")
+    public ApiResponse<ExamResponseDto> closeExam(
+            @PathVariable Long classId,
+            @PathVariable Long examId) {
+
+        return ApiResponse.<ExamResponseDto>builder()
+                .code(200)
+                .message("Dong bai kiem tra thanh cong!")
+                .data(examService.closeExam(classId, examId))
+                .build();
+    }
 }

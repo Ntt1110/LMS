@@ -43,7 +43,7 @@ public class LessonController {
                 .build();
     }
 
-    @PostMapping(value = "/classes/{classId}/lessons", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/{classId}/lessons", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('LESSON_CREATE')")
     @Operation(summary = "Tạo mới một bài học kèm file tài liệu (Hỗ trợ multipart/form-data)")
     public ApiResponse<String> createLesson(
