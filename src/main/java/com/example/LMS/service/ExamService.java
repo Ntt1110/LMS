@@ -1,23 +1,21 @@
 package com.example.LMS.service;
 
 import com.example.LMS.dto.request.CreateExamRequestDto;
+import com.example.LMS.dto.response.ExamAttemptResponseDto;
+import com.example.LMS.dto.response.ExamPaperResponseDto;
 import com.example.LMS.entity.Enum.ExamStatus;
 import com.example.LMS.dto.response.ExamResponseDto;
-import com.example.LMS.entity.model.ClassEntity;
-import com.example.LMS.entity.model.Exam;
-import com.example.LMS.entity.model.ExamQuestion;
-import com.example.LMS.entity.model.QuestionOption;
+import com.example.LMS.entity.model.*;
 import com.example.LMS.exception.CustomException;
-import com.example.LMS.repository.ClassEntityRepository;
-import com.example.LMS.repository.ExamQuestionRepository;
-import com.example.LMS.repository.ExamRepository;
-import com.example.LMS.repository.QuestionOptionRepository;
+import com.example.LMS.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 @Service
@@ -30,6 +28,8 @@ public class ExamService {
      private final ExamQuestionRepository questionRepository;
  private final QuestionOptionRepository optionRepository;
 
+     private final StudentExamAttemptRepository attemptRepository;
+     private final UserRepository userRepository;
     // =========================================================================
     // 🌟 1. LUỒNG GIẢNG VIÊN: XEM TẤT CẢ BÀI KIỂM TRA
     // =========================================================================
@@ -192,6 +192,129 @@ public class ExamService {
                 .status(exam.getStatus())
                 .createdAt(exam.getCreatedAt())
                 .deletedAt(exam.getDeletedAt())
+                .build();
+    }
+
+    @Transactional
+    public ExamAttemptResponseDto startExamAttempt(Long examId) {
+        // 1. Lấy thông tin sinh viên đang đăng nhập
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long studentId = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "Tài khoản không hợp lệ!"))
+                .getId();
+
+        log.info("🚀 Sinh viên ID [{}] yêu cầu bắt đầu làm bài kiểm tra ID [{}]", studentId, examId);
+
+        // 2. Kiểm tra tính hợp lệ của bài thi
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Bài kiểm tra không tồn tại!"));
+
+        if (exam.getStatus() != ExamStatus.OPEN) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Bài kiểm tra chưa được mở để làm bài!");
+        }
+
+        // 3. 🔍 KIỂM TRA LỊCH SỬ LÀM BÀI CỦA SINH VIÊN (Tránh spam API)
+        var existingAttemptOpt = attemptRepository.findByExamIdAndStudentId(examId, studentId);
+
+        if (existingAttemptOpt.isPresent()) {
+            StudentExamAttempt existingAttempt = existingAttemptOpt.get();
+
+            // Nếu đã nộp bài (COMPLETED) hoặc bị ép nộp (FORCED) -> Chặn luôn
+            if (existingAttempt.getStatus() == com.example.LMS.entity.Enum.AttemptStatus.COMPLETED ||
+                    existingAttempt.getStatus() == com.example.LMS.entity.Enum.AttemptStatus.FORCED) {
+                throw new CustomException(HttpStatus.BAD_REQUEST, "Bạn đã hoàn thành bài kiểm tra này rồi, không thể làm lại!");
+            }
+
+            // Nếu đang làm dở (IN_PROGRESS) do rớt mạng -> Trả về phiên làm bài cũ để tiếp tục tính giờ
+            log.info("🔄 Sinh viên tiếp tục phiên làm bài dang dở (Attempt ID: {})", existingAttempt.getId());
+            return ExamAttemptResponseDto.builder()
+                    .attemptId(existingAttempt.getId())
+                    .examId(exam.getId())
+                    .startTime(existingAttempt.getStartTime())
+                    .status(existingAttempt.getStatus().name())
+                    .build();
+        }
+
+        // 4. Nếu hợp lệ và chưa làm bao giờ -> Tạo mới tinh
+        StudentExamAttempt newAttempt = StudentExamAttempt.builder()
+                .exam(exam)
+                .studentId(studentId)
+                .startTime(LocalDateTime.now()) // Bắt đầu tính giờ từ thời điểm này
+                .status(com.example.LMS.entity.Enum.AttemptStatus.IN_PROGRESS)
+                .build();
+
+        StudentExamAttempt savedAttempt = attemptRepository.save(newAttempt);
+
+        log.info("✅ Tạo thành công phiên làm bài mới (Attempt ID: {})", savedAttempt.getId());
+
+        return ExamAttemptResponseDto.builder()
+                .attemptId(savedAttempt.getId())
+                .examId(exam.getId())
+                .startTime(savedAttempt.getStartTime())
+                .status(savedAttempt.getStatus().name())
+                .build();
+    }
+
+    // TẢI ĐỀ THI MÙ CHO SINH VIÊN (Chỉ cho phép khi đang IN_PROGRESS)
+    @Transactional(readOnly = true)
+    public ExamPaperResponseDto getExamPaperForStudent(Long examId) {
+        // 1. Lấy thông tin User
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long studentId = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "Tài khoản không hợp lệ!"))
+                .getId();
+
+        log.info("🎓 Sinh viên ID [{}] đang yêu cầu tải đề thi mù ID: {}", studentId, examId);
+
+        // 2. Kiểm tra bài kiểm tra
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Bài kiểm tra không tồn tại!"));
+
+        if (exam.getStatus() != ExamStatus.OPEN) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "Bài kiểm tra này chưa được xuất bản!");
+        }
+
+        // 3. 🛡️ LÁ CHẮN BẢO MẬT: Kiểm tra phiên làm bài (Attempt)
+        StudentExamAttempt attempt = attemptRepository.findByExamIdAndStudentId(examId, studentId)
+                .orElseThrow(() -> new CustomException(HttpStatus.FORBIDDEN, "Bạn chưa bắt đầu phiên làm bài. Vui lòng bấm Bắt đầu trước!"));
+
+        if (attempt.getStatus() != com.example.LMS.entity.Enum.AttemptStatus.IN_PROGRESS) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Phiên làm bài của bạn đã kết thúc, không thể xem lại đề thi lúc này!");
+        }
+
+        // 4. Kéo toàn bộ câu hỏi của đề thi này lên
+        List<ExamQuestion> questions = questionRepository.findByExamIdOrderByOrderIndexAsc(examId);
+
+        // 5. Map sang DTO an toàn (Bỏ isCorrect)
+        List<ExamPaperResponseDto.ExamQuestionDto> questionDtos = questions.stream().map(q -> {
+
+            // Kéo đáp án của từng câu hỏi
+            List<QuestionOption> options = optionRepository.findByQuestionIdOrderByOrderIndexAsc(q.getId());
+
+            // Map đáp án sang DTO
+            List<ExamPaperResponseDto.ExamOptionDto> optionDtos = options.stream().map(opt ->
+                    ExamPaperResponseDto.ExamOptionDto.builder()
+                            .optionId(opt.getId())
+                            .content(opt.getContent())
+                            .build()
+            ).collect(Collectors.toList());
+
+            return ExamPaperResponseDto.ExamQuestionDto.builder()
+                    .questionId(q.getId())
+                    .content(q.getContent())
+                    .options(optionDtos) // Nhét mảng đáp án vào câu hỏi
+                    .build();
+
+        }).collect(Collectors.toList());
+
+        // 6. Trả về toàn bộ vỏ đề thi
+        log.info("✅ Kéo đề thi thành công! Tổng số câu hỏi: {}", questions.size());
+        return ExamPaperResponseDto.builder()
+                .examId(exam.getId())
+                .title(exam.getTitle())
+                .timeLimit(exam.getTimeLimit())
+                .totalQuestions(exam.getTotalQuestions())
+                .questions(questionDtos)
                 .build();
     }
 }
