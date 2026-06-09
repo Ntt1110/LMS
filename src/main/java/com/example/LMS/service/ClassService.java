@@ -283,37 +283,18 @@ public class ClassService {
             roomName = s.getRoom() != null ? s.getRoom().getName() : null;
         }
 
-        List<LecturerClassDetailResponse.StudentInfo> students =
-                enrollmentRepository.findByClassEntityIdAndStatusNot(classId, EnrollmentStatus.DROPPED)
-                        .stream().map(e -> {
-                            var profile = userProfileRepository.findByUserId(e.getStudentId()).orElse(null);
-                            var studentProfile = studentProfileRepository.findByUserId(e.getStudentId()).orElse(null);
-                            var user = userRepository.findById(e.getStudentId()).orElse(null);
-
-                            return LecturerClassDetailResponse.StudentInfo.builder()
-                                    .studentId(e.getStudentId())
-                                    .fullName(profile != null ? profile.getFullName() : "N/A")
-                                    .studentCode(studentProfile != null ? studentProfile.getStudentCode() : "N/A")
-                                    .email(user != null ? user.getEmail() : "N/A")
-                                    .enrollmentStatus(e.getStatus().name())
-                                    .enrolledAt(e.getEnrolledAt())
-                                    .build();
-                        }).collect(Collectors.toList());
-
         return LecturerClassDetailResponse.builder()
                 .classId(c.getId())
                 .classCode(c.getCode())
                 .courseName(course != null ? course.getName() : "N/A")
                 .courseCode(course != null ? course.getCode() : "N/A")
                 .credits(course != null ? course.getCredits() : null)
-                .semesterCode(c.getSemester().getSemesterCode())
                 .status(c.getStatus() != null ? c.getStatus().name() : null)
                 .maxStudents(c.getMaxStudents())
                 .currentStudents(enrolled)
                 .dayOfWeek(dayOfWeek)
                 .shiftName(shiftName)
                 .roomName(roomName)
-                .students(students)
                 .build();
     }
 
