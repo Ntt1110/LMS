@@ -2,6 +2,8 @@ package com.example.LMS.controller;
 
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.GradeResponseDto;
+import com.example.LMS.dto.response.ClassGradeListResponseDto;
+import java.util.List;
 import com.example.LMS.service.GradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -32,6 +34,21 @@ public class GradeController {
                 .code(200)
                 .message("Tải bảng điểm thành công!")
                 .data(gradeService.getMyGrade(classId))
+                .build();
+    }
+    // ============================================================
+    // XEM DANH SÁCH BẢNG ĐIỂM SINH VIÊN CỦA LỚP (Giảng viên)
+    // GET /api/v1/classes/{classId}/grades
+    // Quyền: GRADE_LOCK (id = 52)
+    // ============================================================
+    @GetMapping("/{classId}/grades")
+    @PreAuthorize("hasAuthority('GRADE_LOCK')")
+    @Operation(summary = "Xem danh sách bảng điểm sinh viên của lớp (Dành cho giảng viên)")
+    public ApiResponse<ClassGradeListResponseDto> getClassGrades(@PathVariable Long classId) {
+        return ApiResponse.<ClassGradeListResponseDto>builder()
+                .code(200)
+                .message("Tải bảng điểm lớp học phần thành công!")
+                .data(gradeService.getClassGrades(classId))
                 .build();
     }
 }
