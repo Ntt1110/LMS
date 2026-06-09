@@ -53,10 +53,10 @@ public class GradeService {
         enrollmentRepository.findByClassEntityIdAndStudentId(classId, student.getId())
                 .orElseThrow(() -> new CustomException(HttpStatus.FORBIDDEN, "Bạn không thuộc lớp học phần này!"));
 
-        // 4. Lấy bảng điểm
+        // 4. Lấy bảng điểm — nếu chưa có thì trả về điểm 0, trạng thái PENDING
         ClassGrade grade = classGradeRepository
                 .findByClassIdAndStudentId(classId, student.getId())
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Chưa có bảng điểm cho lớp này!"));
+                .orElse(null);
 
         // 5. Lấy thông tin môn học
         var course = courseRepository.findById(classEntity.getCourseId()).orElse(null);
@@ -69,12 +69,12 @@ public class GradeService {
                 .courseName(course != null ? course.getName() : "N/A")
                 .courseCode(course != null ? course.getCode() : "N/A")
                 .credits(course != null ? course.getCredits() : null)
-                .regularScore1(grade.getRegularScore1())
-                .regularScore2(grade.getRegularScore2())
-                .midtermScore(grade.getMidtermScore())
-                .finalScore(grade.getFinalScore())
-                .totalScore(grade.getTotalScore())
-                .status(grade.getStatus() != null ? grade.getStatus().name() : "PENDING")
+                .regularScore1(grade != null && grade.getRegularScore1() != null ? grade.getRegularScore1() : 0.0)
+                .regularScore2(grade != null && grade.getRegularScore2() != null ? grade.getRegularScore2() : 0.0)
+                .midtermScore(grade != null && grade.getMidtermScore() != null ? grade.getMidtermScore() : 0.0)
+                .finalScore(grade != null && grade.getFinalScore() != null ? grade.getFinalScore() : 0.0)
+                .totalScore(grade != null && grade.getTotalScore() != null ? grade.getTotalScore() : 0.0)
+                .status(grade != null && grade.getStatus() != null ? grade.getStatus().name() : "PENDING")
                 .build();
     }
     // ============================================================
