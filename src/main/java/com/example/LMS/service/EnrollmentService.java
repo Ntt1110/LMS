@@ -88,6 +88,10 @@ public class EnrollmentService {
         return enrollmentRepository
                 .findByStudentIdAndStatusNot(student.getId(), EnrollmentStatus.DROPPED)
                 .stream()
+                .filter(e -> {
+                    ClassStatus cs = e.getClassEntity().getStatus();
+                    return cs == ClassStatus.ONGOING || cs == ClassStatus.COMPLETED;
+                })
                 .map(e -> buildResponse(e, e.getClassEntity()))
                 .collect(Collectors.toList());
     }
