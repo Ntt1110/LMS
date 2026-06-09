@@ -2,13 +2,17 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.response.GradeResponseDto;
 import com.example.LMS.dto.response.ClassGradeListResponseDto;
+import com.example.LMS.dto.response.TranscriptResponseDto;
 import com.example.LMS.entity.Enum.EnrollmentStatus;
 import com.example.LMS.repository.EnrollmentRepository;
 import com.example.LMS.repository.UserProfileRepository;
 import com.example.LMS.repository.StudentProfileRepository;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import com.example.LMS.entity.model.ClassGrade;
+import com.example.LMS.entity.model.Semester;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.ClassEntityRepository;
 import com.example.LMS.repository.ClassGradeRepository;
@@ -133,6 +137,113 @@ public class GradeService {
                 .courseCode(course != null ? course.getCode() : "N/A")
                 .totalStudents(studentGrades.size())
                 .students(studentGrades)
+                .build();
+    }
+
+    // ============================================================
+    // XEM BẢNG ĐIỂM TOÀN KHOÁ (Sinh viên)
+    // GET /api/v1/grades/my-transcript
+    // Trả về tất cả học kỳ đã học, mỗi học kỳ có danh sách môn + điểm.
+    // Môn chưa có điểm thì trả về 0 hết, trạng thái PENDING.
+    // ============================================================
+    public TranscriptResponseDto getMyTranscript() {
+
+        // 1. Lấy sinh viên đang đăng nhập
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        // 2. Lấy toàn bộ điểm của sinh viên (đã sắp xếp theo học kỳ, môn)
+        List<ClassGrade> allGrades = classGradeRepository.findAllByStudentId(student.getId());
+
+        // 3. Gom theo học kỳ (dùng LinkedHashMap giữ thứ tự đã sắp xếp từ query)
+        Map<Long, List<ClassGrade>> bySemester = new LinkedHashMap<>();
+        for (ClassGrade g : allGrades) {
+            Semester sem = g.getEnrollment().getClassEntity().getSemester();
+            bySemester.computeIfAbsent(sem.getId(), k -> new ArrayList<>()).add(g);
+        }
+
+        // 4. Build từng học kỳ
+        int totalCreditsEarned = 0;
+        double weightedSum = 0.0;
+        int totalWeightedCredits = 0;
+        int totalSubjects = 0;
+
+        var semesterDtos = new ArrayList<TranscriptResponseDto.SemesterTranscriptDto>();
+
+        for (Map.Entry<Long, List<ClassGrade>> entry : bySemester.entrySet()) {
+            Semester sem = entry.getValue().get(0).getEnrollment().getClassEntity().getSemester();
+            List<ClassGrade> grades = entry.getValue();
+
+            int semCredits = 0;
+            int semCreditsEarned = 0;
+            double semWeightedSum = 0.0;
+            int semWeightedCredits = 0;
+
+            var subjectDtos = new ArrayList<TranscriptResponseDto.SubjectGradeDto>();
+
+            for (ClassGrade g : grades) {
+                var classEntity = g.getEnrollment().getClassEntity();
+                var course = courseRepository.findById(classEntity.getCourseId()).orElse(null);
+                int credits = (course != null && course.getCredits() != null) ? course.getCredits() : 0;
+
+                double total = g.getTotalScore() != null ? g.getTotalScore() : 0.0;
+                String status = (g.getStatus() != null) ? g.getStatus().name() : "PENDING";
+
+                semCredits += credits;
+                if ("PASS".equals(status)) {
+                    semCreditsEarned += credits;
+                    semWeightedSum += total * credits;
+                    semWeightedCredits += credits;
+                }
+                totalSubjects++;
+
+                subjectDtos.add(TranscriptResponseDto.SubjectGradeDto.builder()
+                        .classId(classEntity.getId())
+                        .classCode(classEntity.getCode())
+                        .courseCode(course != null ? course.getCode() : "N/A")
+                        .courseName(course != null ? course.getName() : "N/A")
+                        .credits(credits)
+                        .regularScore1(g.getRegularScore1() != null ? g.getRegularScore1() : 0.0)
+                        .regularScore2(g.getRegularScore2() != null ? g.getRegularScore2() : 0.0)
+                        .midtermScore(g.getMidtermScore() != null ? g.getMidtermScore() : 0.0)
+                        .finalScore(g.getFinalScore() != null ? g.getFinalScore() : 0.0)
+                        .totalScore(total)
+                        .status(status)
+                        .build());
+            }
+
+            double semGpa = semWeightedCredits > 0
+                    ? Math.round((semWeightedSum / semWeightedCredits) * 100.0) / 100.0
+                    : 0.0;
+
+            totalCreditsEarned += semCreditsEarned;
+            weightedSum += semWeightedSum;
+            totalWeightedCredits += semWeightedCredits;
+
+            semesterDtos.add(TranscriptResponseDto.SemesterTranscriptDto.builder()
+                    .semesterId(sem.getId())
+                    .semesterCode(sem.getSemesterCode())
+                    .academicYear(sem.getAcademicYear())
+                    .semesterNumber(sem.getSemesterNumber())
+                    .gpaThisSemester(semGpa)
+                    .creditsThisSemester(semCredits)
+                    .creditsEarnedThisSemester(semCreditsEarned)
+                    .subjects(subjectDtos)
+                    .build());
+        }
+
+        double gpaOverall = totalWeightedCredits > 0
+                ? Math.round((weightedSum / totalWeightedCredits) * 100.0) / 100.0
+                : 0.0;
+
+        log.info("Sinh viên {} xem bảng điểm toàn khoá — {} học kỳ, {} môn", username, semesterDtos.size(), totalSubjects);
+
+        return TranscriptResponseDto.builder()
+                .gpaOverall(gpaOverall)
+                .totalCreditsEarned(totalCreditsEarned)
+                .totalSubjects(totalSubjects)
+                .semesters(semesterDtos)
                 .build();
     }
 }

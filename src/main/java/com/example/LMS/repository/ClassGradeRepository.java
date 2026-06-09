@@ -27,4 +27,12 @@ public interface ClassGradeRepository extends JpaRepository<ClassGrade, Long> {
             "WHERE g.enrollment.classEntity.id = :classId " +
             "ORDER BY g.enrollment.studentId ASC")
     List<ClassGrade> findAllByClassId(@Param("classId") Long classId);
+
+    // [TRANSCRIPT] Lấy toàn bộ điểm của một sinh viên — gom theo học kỳ ở tầng service
+    @Query("SELECT g FROM ClassGrade g " +
+            "WHERE g.enrollment.studentId = :studentId " +
+            "AND g.enrollment.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED " +
+            "ORDER BY g.enrollment.classEntity.semester.startDate ASC, " +
+            "         g.enrollment.classEntity.courseId ASC")
+    List<ClassGrade> findAllByStudentId(@Param("studentId") Long studentId);
 }
