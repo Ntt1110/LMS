@@ -43,7 +43,7 @@ public class Exam {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private ExamStatus status = ExamStatus.DRAFT;
+    private ExamStatus status = ExamStatus.CREATED;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
