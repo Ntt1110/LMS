@@ -85,14 +85,15 @@ public class EnrollmentService {
         var student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
 
-        return enrollmentRepository
-                .findByStudentIdAndStatusNot(student.getId(), EnrollmentStatus.DROPPED)
+        // Query thẳng từ bảng classes, chỉ lấy ONGOING và COMPLETED
+        return classEntityRepository.findActiveClassesByStudentId(student.getId())
                 .stream()
-                .filter(e -> {
-                    ClassStatus cs = e.getClassEntity().getStatus();
-                    return cs == ClassStatus.ONGOING || cs == ClassStatus.COMPLETED;
+                .map(c -> {
+                    var enrollment = enrollmentRepository
+                            .findByClassEntityIdAndStudentId(c.getId(), student.getId())
+                            .orElse(null);
+                    return buildResponse(enrollment, c);
                 })
-                .map(e -> buildResponse(e, e.getClassEntity()))
                 .collect(Collectors.toList());
     }
 
