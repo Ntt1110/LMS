@@ -3,6 +3,8 @@ package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.CreateExamRequestDto;
 import com.example.LMS.dto.response.ApiResponse;
+import com.example.LMS.dto.response.ExamAttemptResponseDto;
+import com.example.LMS.dto.response.ExamPaperResponseDto;
 import com.example.LMS.dto.response.ExamResponseDto;
 import com.example.LMS.service.ExamService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -99,6 +101,34 @@ public class ExamController {
                 .code(200)
                 .message("Dong bai kiem tra thanh cong!")
                 .data(examService.closeExam(classId, examId))
+                .build();
+    }
+
+    // BẮT ĐẦU LÀM BÀI KIỂM TRA (Tạo phiên làm bài)
+
+    @PostMapping("/exams/{examId}/attempts")
+    @PreAuthorize("hasAuthority('EXAM_TAKE_SUBMIT')") // Chỉ sinh viên có quyền xem lớp mới được làm
+    @Operation(summary = "Khởi tạo phiên làm bài kiểm tra (Bắt đầu tính giờ)")
+    public ApiResponse<ExamAttemptResponseDto> startExam(@PathVariable Long examId) {
+
+        return ApiResponse.<ExamAttemptResponseDto>builder()
+                .code(201) // Mã 201 Created chuẩn RESTful
+                .message("Bắt đầu làm bài thành công! Hãy chú ý thời gian.")
+                .data(examService.startExamAttempt(examId))
+                .build();
+    }
+
+    // TẢI ĐỀ THI CHO SINH VIÊN (BẢO MẬT ĐÁP ÁN)
+
+    @GetMapping("/exams/{examId}/paper")
+    @PreAuthorize("hasAuthority('EXAM_TAKE_SUBMIT')")
+    @Operation(summary = "Tải đề thi để sinh viên làm bài (Che giấu đáp án đúng)")
+    public ApiResponse<ExamPaperResponseDto> getExamPaper(@PathVariable Long examId) {
+
+        return ApiResponse.<ExamPaperResponseDto>builder()
+                .code(200)
+                .message("Tải đề thi thành công! Chúc bạn làm bài tốt.")
+                .data(examService.getExamPaperForStudent(examId))
                 .build();
     }
 }
