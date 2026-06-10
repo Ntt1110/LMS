@@ -108,11 +108,14 @@ public class EnrollmentService {
         ClassEnrollment saved = enrollmentRepository.save(enrollment);
         log.info("✅ Sinh viên {} đã đăng ký lớp {} thành công!", username, classEntity.getCode());
 
+        // 9. Trả về response ngay với thông tin lớp vừa đăng ký
+        //    (FE dùng response này hiển thị luôn, không cần gọi lại getMyEnrollments())
         return buildResponse(saved, classEntity);
     }
 
     // ============================================================
     // XEM DANH SÁCH LỚP ĐÃ ĐĂNG KÝ
+    // Bao gồm: REGISTRATION (đang mở đăng ký), ONGOING, COMPLETED
     // ============================================================
     public List<EnrollmentResponse> getMyEnrollments() {
 
