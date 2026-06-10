@@ -1,6 +1,7 @@
 package com.example.LMS.service;
 
 import com.example.LMS.dto.request.MajorListRequest;
+import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.dto.response.MajorResponse;
 import com.example.LMS.entity.model.Major;
 import com.example.LMS.exception.CustomException;
@@ -12,6 +13,8 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +40,17 @@ public class MajorService {
         // 3. Query + map sang DTO
         return majorRepository.findAll(spec, pageable)
                 .map(MajorResponse::fromEntity);
+    }
+
+    // ============================================================
+    // DROPDOWN NGÀNH HỌC (chỉ trả id + name, dùng cho select/dropdown)
+    // Filter theo departmentId nếu cần lọc theo khoa cụ thể
+    // ============================================================
+    public List<DropdownResponseDto> getMajorsDropdown(Long departmentId) {
+        if (departmentId != null) {
+            return majorRepository.findDropdownByDepartmentId(departmentId);
+        }
+        return majorRepository.findAllMajorsDropdown();
     }
 
     // ============================================================

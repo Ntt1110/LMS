@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.example.LMS.dto.request.UpdateUserRequest;
 
 import java.util.List;
 
@@ -112,5 +113,31 @@ public class UserController {
     @Operation(summary = "Danh sách giảng viên - dùng cho dropdown tạo lớp học phần")
     public ResponseEntity<List<UserResponse>> getInstructors() {
         return ResponseEntity.ok(userService.getInstructors());
+    }
+
+    // ============================================================
+    // PUT /api/v1/users/{id}
+    // Cập nhật tài khoản (user_profiles + student/teacher profiles)
+    // ============================================================
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    @Operation(
+            summary = "Cập nhật tài khoản người dùng",
+            description = """
+                    Cập nhật thông tin hồ sơ người dùng theo id.
+                    - Tất cả: fullName, phone, birthday, gender, address
+                    - STUDENT thêm: majorId, studentStatus
+                    - INSTRUCTOR/HEAD_OF_DEPT thêm: departmentId, academicTitle, specialization, isVisiting, hireDate
+                    """
+    )
+    public ApiResponse<UserResponse> updateUser(
+            @PathVariable Long id,
+            @RequestBody UpdateUserRequest request
+    ) {
+        return ApiResponse.<UserResponse>builder()
+                .code(200)
+                .message("Cập nhật tài khoản thành công!")
+                .data(userService.updateUser(id, request))
+                .build();
     }
 }
