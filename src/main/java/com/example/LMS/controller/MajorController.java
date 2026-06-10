@@ -1,6 +1,7 @@
 package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.MajorListRequest;
+import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.dto.response.MajorResponse;
 import com.example.LMS.service.MajorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/majors")
 @RequiredArgsConstructor
@@ -20,6 +23,24 @@ import org.springframework.web.bind.annotation.*;
 public class MajorController {
 
     private final MajorService majorService;
+
+    // ============================================================
+    // GET /api/v1/majors/dropdown
+    // Danh sách ngành học dùng cho dropdown (chỉ trả id + name)
+    // Có thể lọc theo departmentId để chỉ lấy ngành của 1 khoa cụ thể
+    // ============================================================
+    @GetMapping("/dropdown")
+    @PreAuthorize("hasAuthority('MAJOR_VIEW')")
+    @Operation(
+            summary = "Dropdown ngành học",
+            description = "Trả về danh sách {id, name} dùng cho select/dropdown. " +
+                    "Truyền departmentId để lọc theo khoa (chỉ lấy ngành đang active)."
+    )
+    public ResponseEntity<List<DropdownResponseDto>> getMajorsDropdown(
+            @RequestParam(required = false) Long departmentId
+    ) {
+        return ResponseEntity.ok(majorService.getMajorsDropdown(departmentId));
+    }
 
     // ============================================================
     // GET /api/v1/majors

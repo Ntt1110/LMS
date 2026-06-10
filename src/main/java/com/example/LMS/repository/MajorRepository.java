@@ -22,5 +22,10 @@ public interface MajorRepository extends JpaRepository<Major, Long>, JpaSpecific
             "FROM Major m")
     List<DropdownResponseDto> findAllMajorsDropdown();
 
+    // Dropdown lọc theo khoa (departmentId)
+    @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(m.id, m.name) " +
+            "FROM Major m WHERE m.department.id = :departmentId AND m.deletedAt IS NULL AND m.isActive = true")
+    List<DropdownResponseDto> findDropdownByDepartmentId(@Param("departmentId") Long departmentId);
+
 
 }

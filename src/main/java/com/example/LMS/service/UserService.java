@@ -19,6 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Set;
 import java.util.HashSet;
+import com.example.LMS.dto.request.UpdateUserRequest;
+import com.example.LMS.entity.model.Department;
+import com.example.LMS.entity.model.Major;
+import com.example.LMS.entity.model.StudentProfile;
+import com.example.LMS.entity.model.TeacherProfile;
+import com.example.LMS.repository.DepartmentRepository;
+import com.example.LMS.repository.MajorRepository;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -38,6 +45,8 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final DepartmentRepository departmentRepository;
+    private final MajorRepository majorRepository;
 
     // ============================================================
     // DANH SÁCH NGƯỜI DÙNG
@@ -323,5 +332,112 @@ public class UserService {
 
         log.info("✅ Đã tạo tài khoản và kích hoạt lệnh gửi mail ngầm thành công.");
     }
+    // ============================================================
+// CẬP NHẬT TÀI KHOẢN (USER_UPDATE)
+// PUT /api/v1/users/{id}
+// ============================================================
+    @Transactional
+    public UserResponse updateUser(Long id, UpdateUserRequest request) {
 
+        // 1. Tìm user
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy người dùng với id: " + id));
+
+        Set<String> roles = user.getRoles().stream()
+                .map(Role::getCode)
+                .collect(Collectors.toSet());
+
+        // 2. Cập nhật user_profiles (CHUNG cho tất cả)
+        UserProfile profile = userProfileRepository.findByUserId(id)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy hồ sơ người dùng!"));
+
+        if (request.getPhone() != null)
+            profile.setPhone(request.getPhone().trim());
+
+        if (request.getBirthday() != null)
+            profile.setBirthday(request.getBirthday());
+
+        if (request.getGender() != null) {
+            try {
+                profile.setGender(UserProfile.Gender.valueOf(request.getGender().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new CustomException(HttpStatus.BAD_REQUEST,
+                        "Giới tính không hợp lệ! Chỉ chấp nhận: MALE, FEMALE, OTHER");
+            }
+        }
+
+        if (request.getAddress() != null)
+            profile.setAddress(request.getAddress().trim());
+
+        userProfileRepository.save(profile);
+
+        // 3. Nếu là INSTRUCTOR hoặc HEAD_OF_DEPT → cập nhật teacher_profiles
+        if (roles.contains("INSTRUCTOR") || roles.contains("HEAD_OF_DEPT")) {
+
+            TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(id)
+                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                            "Không tìm thấy hồ sơ giảng viên!"));
+
+            // Mã GV
+            if (request.getEmployeeCode() != null && !request.getEmployeeCode().isBlank()) {
+                teacherProfile.setEmployeeCode(request.getEmployeeCode().trim());
+            }
+
+            // Id khoa
+            if (request.getDepartmentId() != null) {
+                Department department = departmentRepository.findById(request.getDepartmentId())
+                        .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                                "Không tìm thấy khoa với id: " + request.getDepartmentId()));
+                teacherProfile.setDepartment(department);
+            }
+
+            // Học hàm học vị
+            if (request.getAcademicTitle() != null)
+                teacherProfile.setAcademicTitle(request.getAcademicTitle().trim());
+
+            // Chuyên môn
+            if (request.getSpecialization() != null)
+                teacherProfile.setSpecialization(request.getSpecialization().trim());
+
+            // Loại hợp đồng (false = cơ hữu, true = thỉnh giảng)
+            if (request.getIsVisiting() != null)
+                teacherProfile.setIsVisiting(request.getIsVisiting());
+
+            teacherProfileRepository.save(teacherProfile);
+            log.info("✅ Đã cập nhật teacher_profile cho user ID: {}", id);
+        }
+
+        // 4. Nếu là STUDENT → cập nhật student_profiles
+        if (roles.contains("STUDENT")) {
+
+            StudentProfile studentProfile = studentProfileRepository.findByUserId(id)
+                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                            "Không tìm thấy hồ sơ sinh viên!"));
+
+            // Mã SV
+            if (request.getStudentCode() != null && !request.getStudentCode().isBlank()) {
+                studentProfile.setStudentCode(request.getStudentCode().trim());
+            }
+
+            // Khóa học
+            if (request.getCohort() != null)
+                studentProfile.setCohort(request.getCohort());
+
+            // Ngành học
+            if (request.getMajorId() != null) {
+                Major major = majorRepository.findByIdAndDeletedAtIsNull(request.getMajorId())
+                        .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                                "Không tìm thấy ngành học với id: " + request.getMajorId()));
+                studentProfile.setMajor(major);
+            }
+
+            studentProfileRepository.save(studentProfile);
+            log.info("✅ Đã cập nhật student_profile cho user ID: {}", id);
+        }
+
+        log.info("✅ Cập nhật tài khoản user ID: {} thành công", id);
+        return getUserById(id);
+    }
 }
