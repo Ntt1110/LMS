@@ -32,4 +32,7 @@ public interface EnrollmentRepository extends JpaRepository<ClassEnrollment, Lon
             @Param("classId") Long classId,
             @Param("oldStatus") EnrollmentStatus oldStatus,
             @Param("newStatus") EnrollmentStatus newStatus);
+
+
+    Optional<ClassEnrollment> findByStudentIdAndClassEntityId(Long studentId, Long classId);
 }
