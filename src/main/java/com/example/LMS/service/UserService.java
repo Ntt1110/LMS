@@ -2,6 +2,7 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.UserListRequest;
+import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.dto.response.UserResponse;
 import com.example.LMS.entity.model.*;
 import com.example.LMS.exception.CustomException;
@@ -171,6 +172,17 @@ public class UserService {
                 .stream()
                 .map(u -> UserResponse.fromEntity(u, u.getProfile(), u.getTeacherProfile()))
                 .collect(Collectors.toList());
+    }
+
+    // Dropdown danh sách vai trò (id + name)
+    public List<DropdownResponseDto> getRolesDropdown() {
+        log.info("⏳ Đang lấy dropdown danh sách vai trò...");
+        return roleRepository.findAll().stream()
+                .map(role -> DropdownResponseDto.builder()
+                        .id(role.getId())
+                        .name(role.getName())
+                        .build())
+                .toList();
     }
     // ============================================================
     // SPECIFICATION (dynamic filter cho danh sách)

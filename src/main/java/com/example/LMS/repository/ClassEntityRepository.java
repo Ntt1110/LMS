@@ -50,9 +50,7 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
             "WHERE e.studentId = :studentId " +
             "AND e.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED " +
             "AND c.status IN (" +
-            "   com.example.LMS.entity.Enum.ClassStatus.REGISTRATION, " +
-            "   com.example.LMS.entity.Enum.ClassStatus.ONGOING, " +
-            "   com.example.LMS.entity.Enum.ClassStatus.COMPLETED" +
+            "   com.example.LMS.entity.Enum.ClassStatus.REGISTRATION" +
             ") " +
             "AND c.deletedAt IS NULL")
     List<ClassEntity> findActiveClassesByStudentId(@Param("studentId") Long studentId);

@@ -1,14 +1,6 @@
-package com.example.LMS.dto.response;
-
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
-@Getter
-@Setter
-@Builder
 public class EnrollmentResponse {
     // Môn học
     private Long courseId;
@@ -22,7 +14,9 @@ public class EnrollmentResponse {
 
     // Lịch học
     private Integer dayOfWeek;   // Thứ mấy
-    private String shiftName;    // Ca mấy
+    private String shiftName;
+    private LocalTime startTimeShilf;
+    private LocalTime endTimeShilf;
     private String roomName;     // Phòng nào
 
     // Trạng thái đăng ký (REGISTERED, OFFICIAL, DROPPED)
