@@ -7,7 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface ClassScheduleRepository extends JpaRepository<ClassSchedule,Long> {
+public interface ClassScheduleRepository extends JpaRepository<ClassSchedule, Long> {
 
     boolean existsByRoomIdAndDayOfWeekAndShiftId(Long roomId, Integer dayOfWeek, Long shiftId);
 
@@ -20,4 +20,12 @@ public interface ClassScheduleRepository extends JpaRepository<ClassSchedule,Lon
         AND cs.deletedAt IS NULL
     """)
     List<ClassSchedule> findByClassId(@Param("classId") Long classId);
+
+    // [CONFLICT] Lấy toàn bộ lịch của danh sách lớp — dùng để kiểm tra trùng lịch sinh viên
+    @Query("""
+        SELECT cs FROM ClassSchedule cs
+        WHERE cs.classEntity.id IN :classIds
+        AND cs.deletedAt IS NULL
+    """)
+    List<ClassSchedule> findByClassIds(@Param("classIds") List<Long> classIds);
 }

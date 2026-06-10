@@ -25,6 +25,7 @@ public interface EnrollmentRepository extends JpaRepository<ClassEnrollment, Lon
 
     // Lấy danh sách sinh viên của một lớp (không bị DROPPED) — dùng cho giảng viên xem
     List<ClassEnrollment> findByClassEntityIdAndStatusNot(Long classId, EnrollmentStatus status);
+
     @Modifying
     @Query("UPDATE ClassEnrollment e SET e.status = :newStatus, e.updatedAt = CURRENT_TIMESTAMP " +
             "WHERE e.classEntity.id = :classId AND e.status = :oldStatus")
@@ -33,6 +34,31 @@ public interface EnrollmentRepository extends JpaRepository<ClassEnrollment, Lon
             @Param("oldStatus") EnrollmentStatus oldStatus,
             @Param("newStatus") EnrollmentStatus newStatus);
 
-
     Optional<ClassEnrollment> findByStudentIdAndClassEntityId(Long studentId, Long classId);
+
+    // [CONFLICT] Kiểm tra sinh viên đã đăng ký môn học này trong học kỳ này chưa
+    // Dùng để chặn đăng ký 2 lớp cùng môn trong 1 học kỳ
+    @Query("""
+        SELECT COUNT(e) > 0 FROM ClassEnrollment e
+        WHERE e.studentId = :studentId
+        AND e.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED
+        AND e.classEntity.courseId = :courseId
+        AND e.classEntity.semester.id = :semesterId
+    """)
+    boolean existsBySameCourseSameSemester(
+            @Param("studentId") Long studentId,
+            @Param("courseId") Long courseId,
+            @Param("semesterId") Long semesterId);
+
+    // [CONFLICT] Lấy tất cả classId mà sinh viên đã đăng ký trong học kỳ (không DROPPED)
+    // Dùng để kiểm tra trùng lịch
+    @Query("""
+        SELECT e.classEntity.id FROM ClassEnrollment e
+        WHERE e.studentId = :studentId
+        AND e.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED
+        AND e.classEntity.semester.id = :semesterId
+    """)
+    List<Long> findRegisteredClassIdsBySemester(
+            @Param("studentId") Long studentId,
+            @Param("semesterId") Long semesterId);
 }
