@@ -43,7 +43,7 @@ public class GradeController {
     // Quyền: GRADE_LOCK (id = 52)
     // ============================================================
     @GetMapping("/api/v1/classes/{classId}/grades")
-    @PreAuthorize("hasAuthority('GRADE_LOCK')")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
     @Operation(summary = "Xem danh sách bảng điểm sinh viên của lớp (Dành cho giảng viên)")
     public ApiResponse<ClassGradeListResponseDto> getClassGrades(@PathVariable Long classId) {
         return ApiResponse.<ClassGradeListResponseDto>builder()
