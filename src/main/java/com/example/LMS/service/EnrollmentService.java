@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -168,10 +169,14 @@ public class EnrollmentService {
         Integer dayOfWeek = null;
         String shiftName  = null;
         String roomName   = null;
+        LocalTime startTimeShilf = null;
+        LocalTime endTimeShilf = null;
         if (!schedules.isEmpty()) {
             var s    = schedules.get(0);
             dayOfWeek = s.getDayOfWeek();
             shiftName = s.getShift() != null ? s.getShift().getName() : null;
+            startTimeShilf = s.getShift().getStartTime();
+            endTimeShilf = s.getShift().getEndTime();
             roomName  = s.getRoom()  != null ? s.getRoom().getName()  : null;
         }
 
@@ -184,9 +189,12 @@ public class EnrollmentService {
                 .classCode(classEntity.getCode())
                 .dayOfWeek(dayOfWeek)
                 .shiftName(shiftName)
+                .startTimeShilf(startTimeShilf)
+                .endTimeShilf(endTimeShilf)
                 .roomName(roomName)
                 .status(classEntity.getStatus().name())
                 .enrolledAt(enrollment.getEnrolledAt())
                 .build();
     }
+
 }

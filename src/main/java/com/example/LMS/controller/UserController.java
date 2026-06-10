@@ -3,6 +3,7 @@ package com.example.LMS.controller;
 import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.UserListRequest;
 import com.example.LMS.dto.response.ApiResponse;
+import com.example.LMS.dto.response.DropdownResponseDto;
 import com.example.LMS.dto.response.UserResponse;
 import com.example.LMS.entity.model.User;
 import com.example.LMS.service.AuthService;
@@ -113,6 +114,20 @@ public class UserController {
     @Operation(summary = "Danh sách giảng viên - dùng cho dropdown tạo lớp học phần")
     public ResponseEntity<List<UserResponse>> getInstructors() {
         return ResponseEntity.ok(userService.getInstructors());
+    }
+
+    @GetMapping("/roles/dropdown")
+    @PreAuthorize("hasAnyRole('ADMIN','PRINCIPAL','HR','TRAINING_DEPT','HEAD_OF_DEPT')")
+    @Operation(
+            summary = "Dropdown danh sách vai trò",
+            description = "Trả về danh sách vai trò dạng gọn (id + name) dùng cho các ô chọn Dropdown trên UI"
+    )
+    public ApiResponse<List<DropdownResponseDto>> getRolesDropdown() {
+        return ApiResponse.<List<DropdownResponseDto>>builder()
+                .code(200)
+                .message("Lấy dropdown danh sách vai trò thành công!")
+                .data(userService.getRolesDropdown())
+                .build();
     }
 
     // ============================================================
