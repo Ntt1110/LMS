@@ -160,4 +160,20 @@ public class ExamController {
                 .data(examService.forceSubmitExamAttempt(attemptId)) // Luồng cưỡng chế, chuyển trạng thái thành FORCED
                 .build();
     }
+
+    @PutMapping("/attempts/{attemptId}/answers")
+    @PreAuthorize("hasAuthority('EXAM_VIEW')") // Giữ nguyên mã quyền như các hàm view/làm bài của ông
+    @Operation(summary = "Lưu hoặc cập nhật đáp án trắc nghiệm ngay khi sinh viên click chọn")
+    public ApiResponse<String> saveStudentAnswer(
+            @PathVariable Long attemptId,
+            @jakarta.validation.Valid @RequestBody com.example.LMS.dto.request.SaveAnswerRequestDto dto) {
+
+        examService.saveStudentAnswer(attemptId, dto);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Đã ghi nhận câu trả lời vào hệ thống thành công!")
+                .data("SAVED_SUCCESS")
+                .build();
+    }
 }
