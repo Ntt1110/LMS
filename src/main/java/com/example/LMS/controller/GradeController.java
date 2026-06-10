@@ -1,14 +1,15 @@
 package com.example.LMS.controller;
 
+import com.example.LMS.dto.request.FinalizeGradeRequest;
 import com.example.LMS.dto.response.ApiResponse;
-import com.example.LMS.dto.response.GradeResponseDto;
 import com.example.LMS.dto.response.ClassGradeListResponseDto;
+import com.example.LMS.dto.response.GradeResponseDto;
 import com.example.LMS.dto.response.TranscriptResponseDto;
-import java.util.List;
 import com.example.LMS.service.GradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -52,7 +53,30 @@ public class GradeController {
                 .data(gradeService.getClassGrades(classId))
                 .build();
     }
-
+    // ============================================================
+    // CHỐT ĐIỂM (Giảng viên)
+    // POST /api/v1/classes/{classId}/grades/finalize
+    // Nhập đủ 4 cột → tính totalScore + status → lưu DB
+    // Chỉ GV được phân công mới được chốt
+    // ============================================================
+    @PostMapping("/api/v1/classes/{classId}/grades/finalize")
+    @PreAuthorize("hasAuthority('GRADE_LOCK')")
+    @Operation(
+            summary = "Chốt điểm sinh viên (Giảng viên)",
+            description = "Nhập đủ 4 cột điểm (TX1, TX2, GK, CK) cho 1 sinh viên. " +
+                    "Hệ thống tự tính totalScore và status (PASS/FAIL). " +
+                    "Chỉ giảng viên được phân công dạy lớp mới có quyền thực hiện."
+    )
+    public ApiResponse<ClassGradeListResponseDto.StudentGradeDto> finalizeGrade(
+            @PathVariable Long classId,
+            @Valid @RequestBody FinalizeGradeRequest request
+    ) {
+        return ApiResponse.<ClassGradeListResponseDto.StudentGradeDto>builder()
+                .code(200)
+                .message("Chốt điểm thành công!")
+                .data(gradeService.finalizeGrade(classId, request))
+                .build();
+    }
     // ============================================================
     // XEM BẢNG ĐIỂM TOÀN KHOÁ (Sinh viên)
     // GET /api/v1/grades/my-transcript
