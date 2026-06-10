@@ -32,7 +32,7 @@ public class ClassController {
     // Danh sách lớp học phần — Phòng đào tạo thấy hết, Trưởng khoa chỉ thấy lớp mình
     // ============================================================
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_TRAINING_DEPT', 'ROLE_HEAD_OF_DEPT')")
+    @PreAuthorize("hasAnyAuthority('CLASS_PROPOSE_VIEW')")
     @Operation(
             summary = "Danh sách lớp học phần",
             description = "Tìm theo mã lớp/tên môn, lọc theo học kỳ, trạng thái, khoa. " +

@@ -35,6 +35,9 @@ public class ExamService {
      private final UserRepository userRepository;
 
      private final StudentExamAnswerRepository answerRepository;
+
+    private final EnrollmentRepository enrollmentRepository;
+    private final ClassGradeRepository classGradeRepository;
     // =========================================================================
     // 🌟 1. LUỒNG GIẢNG VIÊN: XEM TẤT CẢ BÀI KIỂM TRA
     // =========================================================================
@@ -378,7 +381,7 @@ public class ExamService {
         }
 
         // Tính điểm thang 10
-        double rawScore = ((double) correctCount / totalQuestions) * 10.0;
+        double rawScore = ((double) correctCount / (double) totalQuestions) * 10.0;
         double finalScore = Math.round(rawScore * 100.0) / 100.0;
 
         // Cập nhật record phiên làm bài
@@ -386,6 +389,61 @@ public class ExamService {
         attempt.setSubmitTime(LocalDateTime.now());
         attempt.setScore(finalScore);
         attemptRepository.save(attempt);
+
+        log.info("📊 [SCORE CALCULATED] Điểm bài thi trắc nghiệm: {}", finalScore);
+
+        // 3. 🌟 LUỒNG ĐỒNG BỘ ĐIỂM SANG BẢNG CLASS_GRADE (CHỈ LƯU, KHÔNG TÍNH TỔNG KẾT)
+        try {
+            Long studentId = attempt.getStudentId();
+            Long classId = exam.getClassEntity().getId(); // ID lớp học phần nối từ đề thi
+
+            // Tìm thông tin đăng ký học của sinh viên trong lớp này
+            ClassEnrollment enrollment = enrollmentRepository.findByStudentIdAndClassEntityId(studentId, classId)
+                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin học phần của sinh viên!"));
+
+            // Tìm hoặc khởi tạo mới bản ghi sổ điểm (ClassGrade) cho sinh viên
+            ClassGrade classGrade = classGradeRepository.findByEnrollmentId(enrollment.getId())
+                    .orElseGet(() -> ClassGrade.builder()
+                            .enrollment(enrollment)
+                            .status(ClassGrade.GradeStatus.PENDING) //
+                            .build());
+
+            // Đổ điểm trực tiếp vào đúng cột được cấu hình từ thuộc tính ExamType
+            if (exam.getExamType() != null) {
+                switch (exam.getExamType()) {
+                    case REGULAR -> {
+                        // 🔍 Dò xem cột Regular 1 trống thì điền, không thì đẩy sang Regular 2
+                        if (classGrade.getRegularScore1() == null) { //
+                            classGrade.setRegularScore1(finalScore); //
+                            log.info("📝 [GRADE SYNC] Cột Regular 1 đang trống. Đã điền điểm: {}", finalScore);
+                        } else if (classGrade.getRegularScore2() == null) { //
+                            classGrade.setRegularScore2(finalScore); //
+                            log.info("📝 [GRADE SYNC] Cột Regular 1 đã có điểm. Tự động chuyển sang điền Regular 2: {}", finalScore);
+                        } else {
+                            // Trường hợp sinh viên làm đến bài kiểm tra nhỏ thứ 3 (Cả 2 cột đều đầy)
+                            log.warn("⚠️ [GRADE SYNC] Cả 2 cột điểm Regular đều đã đầy! Bỏ qua ghi đè bài thi này.");
+                        }
+                    }
+                    case MIDTERM -> {
+                        classGrade.setMidtermScore(finalScore); //
+                        log.info("📝 [GRADE SYNC] Đã điền điểm Giữa kỳ: {}", finalScore);
+                    }
+                    case FINAL -> {
+                        classGrade.setFinalScore(finalScore); //
+                        log.info("📝 [GRADE SYNC] Đã điền điểm Cuối kỳ: {}", finalScore);
+                    }
+                }
+
+                classGrade.setUpdatedAt(LocalDateTime.now()); //
+                classGradeRepository.save(classGrade);
+
+                log.info("🔄 [GRADE SYNC SUCCESS] Đã lưu điểm {} vào sổ điểm học phần thành công!", finalScore);
+            }
+
+        } catch (Exception e) {
+            // Bao bọc try-catch để nếu có lỗi đồng bộ điểm, sinh viên vẫn nộp bài thi thành công
+            log.error("🚨 [GRADE SYNC ERROR] Lỗi phát sinh khi đẩy điểm sang bảng ClassGrade: {}", e.getMessage());
+        }
 
         return ExamResultResponseDto.builder()
                 .attemptId(attempt.getId())

@@ -88,7 +88,6 @@ public class LessonController {
         String savedFileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
 
         // 3. Chuyển file vật lý thành dạng Resource
-        // (Lưu ý: Ông nhớ Inject thằng fileStorageService vào Controller nhé: private final FileStorageService fileStorageService;)
         Resource resource = fileStorageService.loadFileAsResource(savedFileName);
 
         // 4. Nếu database không lưu fileType, mặc định dùng "application/octet-stream" để ép tải xuống
