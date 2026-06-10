@@ -39,6 +39,30 @@ public class GradeService {
     private final StudentProfileRepository studentProfileRepository;
 
     // ============================================================
+    // HELPER: Quy đổi điểm thang 10 → thang 4
+    // A=4.0 | B=3.0 | C=2.0 | D=1.0 | F=0.0
+    // ============================================================
+    private double toGrade4(double score10) {
+        if (score10 >= 8.5) return 4.0;
+        if (score10 >= 7.0) return 3.0;
+        if (score10 >= 5.5) return 2.0;
+        if (score10 >= 4.0) return 1.0;
+        return 0.0;
+    }
+
+    // ============================================================
+    // HELPER: Quy đổi điểm thang 10 → điểm chữ
+    // A | B | C | D | F
+    // ============================================================
+    private String toLetterGrade(double score10) {
+        if (score10 >= 8.5) return "A";
+        if (score10 >= 7.0) return "B";
+        if (score10 >= 5.5) return "C";
+        if (score10 >= 4.0) return "D";
+        return "F";
+    }
+
+    // ============================================================
     // XEM BẢNG ĐIỂM CỦA LỚP (Sinh viên)
     // GET /api/v1/classes/{classId}/my-grade
     // ============================================================
@@ -65,6 +89,13 @@ public class GradeService {
         // 5. Lấy thông tin môn học
         var course = courseRepository.findById(classEntity.getCourseId()).orElse(null);
 
+        double total = (grade != null && grade.getTotalScore() != null) ? grade.getTotalScore() : 0.0;
+        String status = (grade != null && grade.getStatus() != null) ? grade.getStatus().name() : "PENDING";
+
+        // 6. Chỉ tính điểm hệ 4 + điểm chữ khi đã có kết quả (không phải PENDING)
+        Double grade4 = "PENDING".equals(status) ? null : toGrade4(total);
+        String letterGrade = "PENDING".equals(status) ? null : toLetterGrade(total);
+
         log.info("Sinh viên {} xem bảng điểm lớp ID: {}", username, classId);
 
         return GradeResponseDto.builder()
@@ -77,10 +108,13 @@ public class GradeService {
                 .regularScore2(grade != null && grade.getRegularScore2() != null ? grade.getRegularScore2() : 0.0)
                 .midtermScore(grade != null && grade.getMidtermScore() != null ? grade.getMidtermScore() : 0.0)
                 .finalScore(grade != null && grade.getFinalScore() != null ? grade.getFinalScore() : 0.0)
-                .totalScore(grade != null && grade.getTotalScore() != null ? grade.getTotalScore() : 0.0)
-                .status(grade != null && grade.getStatus() != null ? grade.getStatus().name() : "PENDING")
+                .totalScore(total)
+                .grade4(grade4)
+                .letterGrade(letterGrade)
+                .status(status)
                 .build();
     }
+
     // ============================================================
     // XEM DANH SÁCH BẢNG ĐIỂM SINH VIÊN CỦA LỚP (Giảng viên)
     // GET /api/v1/classes/{classId}/grades
@@ -143,8 +177,7 @@ public class GradeService {
     // ============================================================
     // XEM BẢNG ĐIỂM TOÀN KHOÁ (Sinh viên)
     // GET /api/v1/grades/my-transcript
-    // Trả về tất cả học kỳ đã học, mỗi học kỳ có danh sách môn + điểm.
-    // Môn chưa có điểm thì trả về 0 hết, trạng thái PENDING.
+    // Chỉ lấy học kỳ đã CLOSED (filter ở repository).
     // ============================================================
     public TranscriptResponseDto getMyTranscript() {
 
@@ -153,7 +186,7 @@ public class GradeService {
         var student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
 
-        // 2. Lấy toàn bộ điểm của sinh viên (đã sắp xếp theo học kỳ, môn)
+        // 2. Lấy toàn bộ điểm của sinh viên — chỉ học kỳ CLOSED (đã filter ở repository)
         List<ClassGrade> allGrades = classGradeRepository.findAllByStudentId(student.getId());
 
         // 3. Gom theo học kỳ (dùng LinkedHashMap giữ thứ tự đã sắp xếp từ query)
@@ -165,7 +198,8 @@ public class GradeService {
 
         // 4. Build từng học kỳ
         int totalCreditsEarned = 0;
-        double weightedSum = 0.0;
+        double weightedSum10 = 0.0;    // Tổng (điểm10 * tín chỉ) để tính GPA hệ 10
+        double weightedSum4 = 0.0;     // Tổng (điểm4  * tín chỉ) để tính GPA hệ 4
         int totalWeightedCredits = 0;
         int totalSubjects = 0;
 
@@ -177,7 +211,8 @@ public class GradeService {
 
             int semCredits = 0;
             int semCreditsEarned = 0;
-            double semWeightedSum = 0.0;
+            double semWeightedSum10 = 0.0;
+            double semWeightedSum4 = 0.0;
             int semWeightedCredits = 0;
 
             var subjectDtos = new ArrayList<TranscriptResponseDto.SubjectGradeDto>();
@@ -190,10 +225,15 @@ public class GradeService {
                 double total = g.getTotalScore() != null ? g.getTotalScore() : 0.0;
                 String status = (g.getStatus() != null) ? g.getStatus().name() : "PENDING";
 
+                // Chỉ tính điểm hệ 4 + chữ khi đã có kết quả
+                Double grade4 = "PENDING".equals(status) ? null : toGrade4(total);
+                String letterGrade = "PENDING".equals(status) ? null : toLetterGrade(total);
+
                 semCredits += credits;
                 if ("PASS".equals(status)) {
                     semCreditsEarned += credits;
-                    semWeightedSum += total * credits;
+                    semWeightedSum10 += total * credits;
+                    semWeightedSum4 += toGrade4(total) * credits;
                     semWeightedCredits += credits;
                 }
                 totalSubjects++;
@@ -209,16 +249,22 @@ public class GradeService {
                         .midtermScore(g.getMidtermScore() != null ? g.getMidtermScore() : 0.0)
                         .finalScore(g.getFinalScore() != null ? g.getFinalScore() : 0.0)
                         .totalScore(total)
+                        .grade4(grade4)
+                        .letterGrade(letterGrade)
                         .status(status)
                         .build());
             }
 
-            double semGpa = semWeightedCredits > 0
-                    ? Math.round((semWeightedSum / semWeightedCredits) * 100.0) / 100.0
+            double semGpa10 = semWeightedCredits > 0
+                    ? Math.round((semWeightedSum10 / semWeightedCredits) * 100.0) / 100.0
+                    : 0.0;
+            double semGpa4 = semWeightedCredits > 0
+                    ? Math.round((semWeightedSum4 / semWeightedCredits) * 100.0) / 100.0
                     : 0.0;
 
             totalCreditsEarned += semCreditsEarned;
-            weightedSum += semWeightedSum;
+            weightedSum10 += semWeightedSum10;
+            weightedSum4 += semWeightedSum4;
             totalWeightedCredits += semWeightedCredits;
 
             semesterDtos.add(TranscriptResponseDto.SemesterTranscriptDto.builder()
@@ -226,21 +272,26 @@ public class GradeService {
                     .semesterCode(sem.getSemesterCode())
                     .academicYear(sem.getAcademicYear())
                     .semesterNumber(sem.getSemesterNumber())
-                    .gpaThisSemester(semGpa)
+                    .gpaThisSemester(semGpa10)
+                    .gpaThisSemester4(semGpa4)
                     .creditsThisSemester(semCredits)
                     .creditsEarnedThisSemester(semCreditsEarned)
                     .subjects(subjectDtos)
                     .build());
         }
 
-        double gpaOverall = totalWeightedCredits > 0
-                ? Math.round((weightedSum / totalWeightedCredits) * 100.0) / 100.0
+        double gpaOverall10 = totalWeightedCredits > 0
+                ? Math.round((weightedSum10 / totalWeightedCredits) * 100.0) / 100.0
+                : 0.0;
+        double gpaOverall4 = totalWeightedCredits > 0
+                ? Math.round((weightedSum4 / totalWeightedCredits) * 100.0) / 100.0
                 : 0.0;
 
         log.info("Sinh viên {} xem bảng điểm toàn khoá — {} học kỳ, {} môn", username, semesterDtos.size(), totalSubjects);
 
         return TranscriptResponseDto.builder()
-                .gpaOverall(gpaOverall)
+                .gpaOverall(gpaOverall10)
+                .gpaOverall4(gpaOverall4)
                 .totalCreditsEarned(totalCreditsEarned)
                 .totalSubjects(totalSubjects)
                 .semesters(semesterDtos)
