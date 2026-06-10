@@ -41,12 +41,19 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
     // Lấy danh sách lớp được phân công cho giảng viên
     List<ClassEntity> findByLecturerIdAndDeletedAtIsNull(Long lecturerId);
 
-    // Lấy danh sách lớp sinh viên đang học hoặc đã hoàn thành (query thẳng từ bảng classes)
+    // Lấy danh sách lớp sinh viên đã đăng ký:
+    // - REGISTRATION : đang trong đợt đăng ký (vừa đăng ký xong thấy ngay)
+    // - ONGOING      : đang học
+    // - COMPLETED    : đã hoàn thành
     @Query("SELECT c FROM ClassEntity c " +
             "JOIN ClassEnrollment e ON e.classEntity.id = c.id " +
             "WHERE e.studentId = :studentId " +
             "AND e.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED " +
-            "AND c.status IN (com.example.LMS.entity.Enum.ClassStatus.ONGOING, com.example.LMS.entity.Enum.ClassStatus.COMPLETED) " +
+            "AND c.status IN (" +
+            "   com.example.LMS.entity.Enum.ClassStatus.REGISTRATION, " +
+            "   com.example.LMS.entity.Enum.ClassStatus.ONGOING, " +
+            "   com.example.LMS.entity.Enum.ClassStatus.COMPLETED" +
+            ") " +
             "AND c.deletedAt IS NULL")
     List<ClassEntity> findActiveClassesByStudentId(@Param("studentId") Long studentId);
 
