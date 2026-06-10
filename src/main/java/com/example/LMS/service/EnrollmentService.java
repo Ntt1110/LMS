@@ -5,6 +5,7 @@ import com.example.LMS.entity.Enum.ClassStatus;
 import com.example.LMS.entity.Enum.EnrollmentStatus;
 import com.example.LMS.entity.model.ClassEnrollment;
 import com.example.LMS.entity.model.ClassEntity;
+import com.example.LMS.entity.model.ClassSchedule;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -50,18 +51,52 @@ public class EnrollmentService {
             throw new CustomException(HttpStatus.BAD_REQUEST, "Lớp học phần này hiện không mở đăng ký!");
         }
 
-        // 4. Kiểm tra đã đăng ký chưa
+        // 4. Kiểm tra đã đăng ký lớp này chưa
         if (enrollmentRepository.existsByClassEntityIdAndStudentId(classId, student.getId())) {
             throw new CustomException(HttpStatus.CONFLICT, "Bạn đã đăng ký lớp học phần này rồi!");
         }
 
-        // 5. Kiểm tra còn chỗ không
+        // 5. Kiểm tra trùng môn học trong cùng học kỳ
+        Long semesterId = classEntity.getSemester().getId();
+        Long courseId   = classEntity.getCourseId();
+
+        if (enrollmentRepository.existsBySameCourseSameSemester(student.getId(), courseId, semesterId)) {
+            throw new CustomException(HttpStatus.CONFLICT,
+                    "Bạn đã đăng ký một lớp của môn học này trong học kỳ hiện tại rồi!");
+        }
+
+        // 6. Kiểm tra trùng lịch học trong cùng học kỳ
+        List<Long> registeredClassIds = enrollmentRepository
+                .findRegisteredClassIdsBySemester(student.getId(), semesterId);
+
+        if (!registeredClassIds.isEmpty()) {
+            // Lấy lịch của tất cả lớp đã đăng ký
+            List<ClassSchedule> existingSchedules = classScheduleRepository
+                    .findByClassIds(registeredClassIds);
+
+            // Lấy lịch của lớp muốn đăng ký
+            List<ClassSchedule> newSchedules = classScheduleRepository.findByClassId(classId);
+
+            for (ClassSchedule newSlot : newSchedules) {
+                for (ClassSchedule existingSlot : existingSchedules) {
+                    if (newSlot.getDayOfWeek().equals(existingSlot.getDayOfWeek())
+                            && newSlot.getShift().getId().equals(existingSlot.getShift().getId())) {
+                        throw new CustomException(HttpStatus.CONFLICT,
+                                "Lịch học bị trùng với lớp " + existingSlot.getClassEntity().getCode()
+                                        + " (Thứ " + existingSlot.getDayOfWeek()
+                                        + ", Ca " + existingSlot.getShift().getName() + ")!");
+                    }
+                }
+            }
+        }
+
+        // 7. Kiểm tra còn chỗ không
         int enrolled = classEntityRepository.countEnrollmentsByClassId(classId);
         if (enrolled >= classEntity.getMaxStudents()) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "Lớp học phần đã đầy, không thể đăng ký!");
         }
 
-        // 6. Lưu đăng ký
+        // 8. Lưu đăng ký
         ClassEnrollment enrollment = ClassEnrollment.builder()
                 .classEntity(classEntity)
                 .studentId(student.getId())
@@ -85,7 +120,6 @@ public class EnrollmentService {
         var student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
 
-        // Query thẳng từ bảng classes, chỉ lấy ONGOING và COMPLETED
         return classEntityRepository.findActiveClassesByStudentId(student.getId())
                 .stream()
                 .map(c -> {
@@ -127,16 +161,15 @@ public class EnrollmentService {
     private EnrollmentResponse buildResponse(ClassEnrollment enrollment, ClassEntity classEntity) {
         var course = courseRepository.findById(classEntity.getCourseId()).orElse(null);
 
-        // Lấy lịch học của lớp (thứ, ca, phòng)
         var schedules = classScheduleRepository.findByClassId(classEntity.getId());
         Integer dayOfWeek = null;
-        String shiftName = null;
-        String roomName = null;
+        String shiftName  = null;
+        String roomName   = null;
         if (!schedules.isEmpty()) {
-            var s = schedules.get(0);
+            var s    = schedules.get(0);
             dayOfWeek = s.getDayOfWeek();
             shiftName = s.getShift() != null ? s.getShift().getName() : null;
-            roomName = s.getRoom() != null ? s.getRoom().getName() : null;
+            roomName  = s.getRoom()  != null ? s.getRoom().getName()  : null;
         }
 
         return EnrollmentResponse.builder()
