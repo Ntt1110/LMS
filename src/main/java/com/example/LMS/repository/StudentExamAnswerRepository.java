@@ -15,4 +15,6 @@ public interface StudentExamAnswerRepository extends JpaRepository<StudentExamAn
 
     // 🔍 Dùng cho luồng Chấm điểm (Nộp bài): Gom hết tất cả đáp án sinh viên đã đánh lụi để so khớp kết quả
     List<StudentExamAnswer> findByAttemptId(Long attemptId);
+
+
 }
