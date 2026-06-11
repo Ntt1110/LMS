@@ -62,7 +62,7 @@ public class ClassController {
     // Trả về: giảng viên, ca học, phòng học, học thứ mấy, sĩ số hiện tại
     // ============================================================
     @GetMapping("/{classId}/student-detail")
-    @PreAuthorize("hasAuthority('COURSE_CLASS_VIEW')")
+    @PreAuthorize("hasAuthority('CLASS_VIEW')")
     @Operation(summary = "Chi tiết lớp học phần (sinh viên)")
     public ApiResponse<ClassDetailForStudentResponse> getClassDetailForStudent(@PathVariable Long classId) {
         return ApiResponse.<ClassDetailForStudentResponse>builder()
