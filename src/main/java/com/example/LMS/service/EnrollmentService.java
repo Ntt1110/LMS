@@ -133,6 +133,27 @@ public class EnrollmentService {
     }
 
     // ============================================================
+    // XEM DANH SÁCH LỚP ĐÃ ĐĂNG KÝ (ONGOING + COMPLETED)
+    // ============================================================
+    public List<EnrollmentResponse> getMyRegisteredEnrollments() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        return classEntityRepository
+                .findClassesByStudentIdAndClassStatuses(student.getId(),
+                        List.of(ClassStatus.ONGOING, ClassStatus.COMPLETED))
+                .stream()
+                .map(c -> {
+                    var enrollment = enrollmentRepository
+                            .findByClassEntityIdAndStudentId(c.getId(), student.getId())
+                            .orElse(null);
+                    return buildResponse(enrollment, c);
+                })
+                .collect(Collectors.toList());
+    }
+
+    // ============================================================
     // HỦY ĐĂNG KÝ HỌC PHẦN
     // ============================================================
     @Transactional
