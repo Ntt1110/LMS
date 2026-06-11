@@ -272,16 +272,19 @@ public class ClassService {
         var course = courseRepository.findById(c.getCourseId()).orElse(null);
         int enrolled = classRepository.countEnrollmentsByClassId(c.getId());
 
-        var scheduleList = classScheduleRepository.findByClassId(c.getId());
-        Integer dayOfWeek = null;
-        String shiftName = null;
-        String roomName = null;
-        if (!scheduleList.isEmpty()) {
-            var s = scheduleList.get(0);
-            dayOfWeek = s.getDayOfWeek();
-            shiftName = s.getShift() != null ? s.getShift().getName() : null;
-            roomName = s.getRoom() != null ? s.getRoom().getName() : null;
-        }
+        // ✅ Lấy toàn bộ TKB thay vì chỉ lấy phần tử đầu tiên
+        List<LecturerClassDetailResponse.ScheduleInfo> scheduleInfos =
+                classScheduleRepository.findByClassId(c.getId()).stream()
+                        .map(s -> LecturerClassDetailResponse.ScheduleInfo.builder()
+                                .scheduleId(s.getId())
+                                .dayOfWeek(s.getDayOfWeek())
+                                .shiftName(s.getShift() != null ? s.getShift().getName() : null)
+                                .startTime(s.getShift() != null ? s.getShift().getStartTime() : null)
+                                .endTime(s.getShift() != null ? s.getShift().getEndTime() : null)
+                                .roomName(s.getRoom() != null ? s.getRoom().getName() : null)
+                                .roomType(s.getRoom() != null ? s.getRoom().getType().name() : null)
+                                .build()
+                        ).collect(Collectors.toList());
 
         return LecturerClassDetailResponse.builder()
                 .classId(c.getId())
@@ -292,9 +295,7 @@ public class ClassService {
                 .status(c.getStatus() != null ? c.getStatus().name() : null)
                 .maxStudents(c.getMaxStudents())
                 .currentStudents(enrolled)
-                .dayOfWeek(dayOfWeek)
-                .shiftName(shiftName)
-                .roomName(roomName)
+                .schedules(scheduleInfos)  // ✅ full TKB
                 .build();
     }
 
