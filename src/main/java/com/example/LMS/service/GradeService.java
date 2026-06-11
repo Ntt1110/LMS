@@ -172,6 +172,58 @@ public class GradeService {
                 .students(studentGrades)
                 .build();
     }
+    // ============================================================
+    // CHỐT ĐIỂM LỚP (Giảng viên)
+    // POST /api/v1/grades/lock?classId=1
+    // Nghiệp vụ:
+    //   1. Kiểm tra lớp tồn tại & GV được phân công
+    //   2. Kiểm tra không còn SV nào thiếu bảng điểm
+    //   3. Kiểm tra không còn bảng điểm nào PENDING
+    //   4. Đổi trạng thái lớp sang COMPLETED
+    // ============================================================
+    @Transactional
+    public void lockClassGrades(Long classId) {
+
+        // 1. Lấy giảng viên đang đăng nhập
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var lecturer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        // 2. Kiểm tra lớp tồn tại
+        var classEntity = classEntityRepository.findById(classId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy lớp học phần!"));
+
+        // 3. Kiểm tra GV có được phân công dạy lớp này không
+        if (!lecturer.getId().equals(classEntity.getLecturerId())) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "Bạn không có quyền chốt điểm cho lớp này!");
+        }
+
+        // 4. Kiểm tra lớp đã COMPLETED chưa
+        if (classEntity.getStatus() == com.example.LMS.entity.Enum.ClassStatus.COMPLETED) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Lớp học phần này đã được chốt điểm trước đó!");
+        }
+
+        // 5. Kiểm tra còn SV nào chưa có bảng điểm không
+        long missingGradeCount = classGradeRepository.countEnrollmentsWithoutGrade(classId);
+        if (missingGradeCount > 0) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Còn " + missingGradeCount + " sinh viên chưa được nhập điểm. Vui lòng nhập đủ điểm trước khi chốt!");
+        }
+
+        // 6. Kiểm tra còn bảng điểm nào status = PENDING không
+        boolean hasPending = classGradeRepository.existsPendingByClassId(classId);
+        if (hasPending) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Vẫn còn sinh viên có trạng thái điểm PENDING. Vui lòng nhập đủ 4 cột điểm cho tất cả sinh viên trước khi chốt lớp!");
+        }
+
+        // 7. Chốt lớp — cập nhật trạng thái sang COMPLETED
+        classEntity.setStatus(com.example.LMS.entity.Enum.ClassStatus.COMPLETED);
+        classEntity.setUpdatedAt(LocalDateTime.now());
+        classEntityRepository.save(classEntity);
+
+        log.info("✅ Giảng viên {} đã chốt điểm lớp ID {} — Status chuyển sang COMPLETED", username, classId);
+    }
 
     // ============================================================
     // CHỐT ĐIỂM (Giảng viên) — GRADE_LOCK
