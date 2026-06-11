@@ -52,8 +52,7 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
             "AND c.deletedAt IS NULL")
     List<ClassEntity> findActiveClassesByStudentId(@Param("studentId") Long studentId);
 
-
-
+    List<ClassEntity> findBySemesterId(Long semesterId);
     // Lấy lịch học của một lớp cụ thể (dùng cho API chi tiết lớp của sinh viên)
     @Query("""
         SELECT cs FROM ClassSchedule cs

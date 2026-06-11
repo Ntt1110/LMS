@@ -1,12 +1,7 @@
 package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.ClassListRequest;
-import com.example.LMS.dto.response.ClassDetailResponse;
-import com.example.LMS.dto.response.ClassDetailForStudentResponse;
-import com.example.LMS.dto.response.LecturerClassResponse;
-import com.example.LMS.dto.response.LecturerClassDetailResponse;
-import com.example.LMS.dto.response.StudentOfClassResponse;
-import com.example.LMS.dto.response.ApiResponse;
+import com.example.LMS.dto.response.*;
 import com.example.LMS.service.ClassService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -116,6 +111,17 @@ public class ClassController {
                 .code(200)
                 .message("Tải danh sách sinh viên thành công!")
                 .data(classService.getStudentsOfClass(classId))
+                .build();
+    }
+
+    @GetMapping("/semesters/{semesterId}/classes")
+    @PreAuthorize("hasAnyAuthority('CLASS_VIEW')")
+    @Operation(summary = "Lấy danh sách lớp học phần theo học kỳ")
+    public ApiResponse<List<ClassResponse>> getClassesBySemester(@PathVariable Long semesterId) {
+        return ApiResponse.<List<ClassResponse>>builder()
+                .code(200)
+                .message("Tải danh sách lớp thành công!")
+                .data(classService.getClassesBySemester(semesterId))
                 .build();
     }
 }

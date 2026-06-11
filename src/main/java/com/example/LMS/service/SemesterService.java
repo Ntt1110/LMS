@@ -2,11 +2,19 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.request.SemesterCreateRequest;
 import com.example.LMS.dto.request.SemesterListRequest;
+import com.example.LMS.dto.response.ClassResponse;
 import com.example.LMS.dto.response.SemesterResponse;
+import com.example.LMS.entity.model.ClassEntity;
+import com.example.LMS.entity.model.Course;
 import com.example.LMS.entity.model.Semester;
+import com.example.LMS.entity.model.User;
 import com.example.LMS.exception.CustomException;
+import com.example.LMS.repository.ClassEntityRepository;
+import com.example.LMS.repository.CourseRepository;
 import com.example.LMS.repository.SemesterRepository;
+import com.example.LMS.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -15,13 +23,21 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.LMS.dto.response.SemesterDetailResponse;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SemesterService {
 
     private final SemesterRepository semesterRepository;
+    private final ClassEntityRepository classRepository;
+    private final CourseRepository courseRepository;
+    private final UserRepository userRepository;
 
     // ============================================================
     // DANH SÁCH HỌC KỲ có filter + phân trang
@@ -46,7 +62,7 @@ public class SemesterService {
         return semesterRepository.findAllByDeletedAtIsNullOrderByAcademicYearDescSemesterCodeAsc()
                 .stream()
                 .map(SemesterResponse::fromEntity)
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
     // ============================================================
@@ -125,4 +141,5 @@ public class SemesterService {
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
     }
+
 }
