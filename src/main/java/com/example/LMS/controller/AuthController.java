@@ -4,6 +4,11 @@ import com.example.LMS.dto.request.LoginRequest;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.dto.response.UserProfileResponse;
+import com.example.LMS.entity.model.PasswordReset;
+import com.example.LMS.entity.model.User;
+import com.example.LMS.exception.CustomException;
+import com.example.LMS.repository.PasswordResetRepository;
+import com.example.LMS.repository.UserRepository;
 import com.example.LMS.security.JwtService;
 
 
@@ -12,15 +17,22 @@ import com.example.LMS.service.AuthorizationService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@Slf4j
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -30,6 +42,7 @@ public class AuthController {
     private final AuthService authService;
 
     private final AuthorizationService authorizationService;
+
 
 
 
@@ -71,4 +84,17 @@ public class AuthController {
                 .data(myProfile)
                 .build();
     }
+    @PostMapping("/auth/reset-password")
+    @Operation(summary = "Đặt lại mật khẩu mới sử dụng Token xác thực từ Email")
+    public ApiResponse<String> resetPassword(@jakarta.validation.Valid @RequestBody com.example.LMS.dto.request.ResetPasswordDto dto) {
+
+        authService.resetPassword(dto);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Đặt lại mật khẩu mới thành công! Bạn có thể dùng mật khẩu này để đăng nhập.")
+                .data("PASSWORD_RESET_SUCCESS")
+                .build();
+    }
+
 }
