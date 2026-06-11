@@ -60,4 +60,6 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
         AND cs.deletedAt IS NULL
     """)
     List<com.example.LMS.entity.model.ClassSchedule> findSchedulesByClassId(@Param("classId") Long classId);
+
+    long countBySemesterIdAndStatusNotInAndDeletedAtIsNull(Long semesterId, List<com.example.LMS.entity.Enum.ClassStatus> statuses);
 }

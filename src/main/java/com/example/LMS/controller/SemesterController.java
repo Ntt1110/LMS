@@ -97,5 +97,17 @@ public class SemesterController {
                 .body(semesterService.createSemester(request));
     }
 
+    @PostMapping("/{semesterId}/close")
+    @PreAuthorize(" hasAuthority('SEMESTER_FINISH')") // Đảm bảo phân quyền gác cổng chặt chẽ
+    @Operation(summary = "Đóng học kỳ (Bắt buộc kiểm tra tất cả các lớp phải ở trạng thái COMPLETED)")
+    public ApiResponse<String> closeSemester(@PathVariable Long semesterId) {
 
+        semesterService.closeSemester(semesterId);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Đóng học kỳ thành công! Trạng thái học kỳ đã chuyển sang CLOSED.")
+                .data("SEMESTER_CLOSED_SUCCESS")
+                .build();
+    }
 }
