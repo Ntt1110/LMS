@@ -25,6 +25,7 @@ import jakarta.persistence.criteria.JoinType;
 
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -462,11 +463,15 @@ public class ClassOpeningService {
                 Integer dayOfWeek = null;
                 String shiftName = null;
                 String roomName = null;
+                LocalTime startTimeShift = null;
+                LocalTime endTimeShift = null;
                 if (!schedules.isEmpty()) {
                     var s = schedules.get(0);
                     dayOfWeek = s.getDayOfWeek();
                     shiftName = s.getShift() != null ? s.getShift().getName() : null;
                     roomName = s.getRoom() != null ? s.getRoom().getName() : null;
+                    startTimeShift = s.getShift() != null ? s.getShift().getStartTime() : null;
+                    endTimeShift = s.getShift() != null ? s.getShift().getEndTime() : null;
                 }
 
                 return CourseWithClassesResponse.ClassInfo.builder()
@@ -476,6 +481,8 @@ public class ClassOpeningService {
                         .dayOfWeek(dayOfWeek)
                         .shiftName(shiftName)
                         .roomName(roomName)
+                        .startTimeShilf(startTimeShift)
+                        .endTimeShilf(endTimeShift)
                         .currentStudents(enrolled)
                         .maxStudents(c.getMaxStudents())
                         .build();
