@@ -133,6 +133,40 @@ public class EnrollmentService {
     }
 
     // ============================================================
+    // XEM DANH SÁCH LỚP ĐÃ ĐĂNG KÝ (ONGOING / COMPLETED)
+    // ============================================================
+    public List<EnrollmentResponse> getMyEnrollmentsByStatus(String statusParam) {
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        ClassStatus classStatus;
+        try {
+            classStatus = ClassStatus.valueOf(statusParam.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Trạng thái không hợp lệ! Chỉ chấp nhận: ONGOING, COMPLETED");
+        }
+
+        if (classStatus != ClassStatus.ONGOING && classStatus != ClassStatus.COMPLETED) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Trạng thái không hợp lệ! Chỉ chấp nhận: ONGOING, COMPLETED");
+        }
+
+        return classEntityRepository
+                .findClassesByStudentIdAndClassStatus(student.getId(), classStatus)
+                .stream()
+                .map(c -> {
+                    var enrollment = enrollmentRepository
+                            .findByClassEntityIdAndStudentId(c.getId(), student.getId())
+                            .orElse(null);
+                    return buildResponse(enrollment, c);
+                })
+                .collect(Collectors.toList());
+    }
+
+    // ============================================================
     // HỦY ĐĂNG KÝ HỌC PHẦN
     // ============================================================
     @Transactional

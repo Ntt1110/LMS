@@ -43,6 +43,22 @@ public class EnrollmentController {
                 .build();
     }
 
+    @GetMapping("/my/registered")
+    @PreAuthorize("hasAuthority('ENROLLMENT_VIEW')")
+    @Operation(
+            summary = "Danh sách lớp đã đăng ký theo trạng thái",
+            description = "Lọc theo trạng thái lớp: ONGOING (đang diễn ra) hoặc COMPLETED (đã kết thúc)"
+    )
+    public ApiResponse<List<EnrollmentResponse>> getMyEnrollmentsByStatus(
+            @RequestParam String status
+    ) {
+        return ApiResponse.<List<EnrollmentResponse>>builder()
+                .code(200)
+                .message("Tải danh sách học phần thành công!")
+                .data(enrollmentService.getMyEnrollmentsByStatus(status))
+                .build();
+    }
+
     @DeleteMapping("/{classId}")
     @PreAuthorize("hasAuthority('ENROLLMENT_CANCEL')")
     @Operation(summary = "Hủy đăng ký học phần")

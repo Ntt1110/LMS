@@ -61,4 +61,18 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
         AND cs.deletedAt IS NULL
     """)
     List<com.example.LMS.entity.model.ClassSchedule> findSchedulesByClassId(@Param("classId") Long classId);
+
+    // Lấy danh sách lớp đã đăng ký theo trạng thái (ONGOING / COMPLETED)
+    @Query("""
+        SELECT c FROM ClassEntity c
+        JOIN ClassEnrollment e ON e.classEntity.id = c.id
+        WHERE e.studentId = :studentId
+        AND e.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED
+        AND c.status = :classStatus
+        AND c.deletedAt IS NULL
+    """)
+    List<ClassEntity> findClassesByStudentIdAndClassStatus(
+            @Param("studentId") Long studentId,
+            @Param("classStatus") ClassStatus classStatus
+    );
 }
