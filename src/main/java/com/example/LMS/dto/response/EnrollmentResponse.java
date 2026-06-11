@@ -1,6 +1,15 @@
+package com.example.LMS.dto.response;
+
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+@Getter
+@Setter
+@Builder
 public class EnrollmentResponse {
     // Môn học
     private Long courseId;
@@ -24,3 +33,4 @@ public class EnrollmentResponse {
 
     private LocalDateTime enrolledAt;
 }
+
