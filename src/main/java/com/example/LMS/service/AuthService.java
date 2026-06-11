@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +34,9 @@ public class AuthService {
     private final UserProfileRepository userProfileRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final TeacherProfileRepository teacherProfileRepository;
+   ;
+    private final PasswordResetRepository passwordResetRepository;
+    private final PasswordEncoder passwordEncoder;
 
     // TODO: Tiêm thêm UserProfileRepository và PermissionRepository vào đây ở các bước sau
 
@@ -162,6 +166,39 @@ public class AuthService {
         }
 
         return responseBuilder.build();
+    }
+
+    @Transactional
+    public void resetPassword(com.example.LMS.dto.request.ResetPasswordDto dto) {
+        log.info("⏳ Hệ thống đang kiểm tra Token để tiến hành đổi mật khẩu mới...");
+
+        // 1. Kiểm tra Token có tồn tại trong bảng password_resets không
+        PasswordReset passwordReset = passwordResetRepository.findByToken(dto.getToken())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Mã xác thực (Token) không hợp lệ!"));
+
+        // 2. Kiểm tra xem Token này đã từng được sử dụng trước đó chưa
+        if (passwordReset.getIsUsed()) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Mã xác thực này đã được sử dụng! Vui lòng gửi lại yêu cầu mới.");
+        }
+
+        // 3. Kiểm tra xem Token đã bị quá hạn 15 phút chưa
+        if (passwordReset.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Mã xác thực đã hết hạn sử dụng! Vui lòng gửi lại yêu cầu mới.");
+        }
+
+        // 4. Tìm kiếm User sở hữu Token này để cập nhật mật khẩu
+        User user = userRepository.findById(passwordReset.getUserId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Tài khoản liên kết không tồn tại trên hệ thống!"));
+
+        // 5. Tiến hành mã hóa BCrypt mật khẩu mới và ghi đè vào bảng users
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userRepository.save(user);
+
+        // 6. Đóng hòm Token: Đánh dấu đã sử dụng để không ai dùng lại được nữa
+        passwordReset.setIsUsed(true);
+        passwordResetRepository.save(passwordReset);
+
+        log.info("✅ Đổi mật khẩu thành công cho tài khoản có Username: {}", user.getUsername());
     }
 }
 

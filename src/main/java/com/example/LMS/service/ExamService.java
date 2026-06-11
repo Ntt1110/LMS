@@ -437,7 +437,9 @@ public class ExamService {
                     }
                 }
 
-                classGrade.setUpdatedAt(LocalDateTime.now()); //
+                calculateAndUpdateTotalScore(classGrade);
+
+                classGrade.setUpdatedAt(LocalDateTime.now());
                 classGradeRepository.save(classGrade);
 
                 log.info("🔄 [GRADE SYNC SUCCESS] Đã lưu điểm {} vào sổ điểm học phần thành công!", finalScore);
@@ -447,6 +449,7 @@ public class ExamService {
             // Bao bọc try-catch để nếu có lỗi đồng bộ điểm, sinh viên vẫn nộp bài thi thành công
             log.error("🚨 [GRADE SYNC ERROR] Lỗi phát sinh khi đẩy điểm sang bảng ClassGrade: {}", e.getMessage());
         }
+
 
         return ExamResultResponseDto.builder()
                 .attemptId(attempt.getId())
@@ -527,6 +530,42 @@ public class ExamService {
             studentExamAnswerRepository.save(newAnswer);
             log.info("✅ [Auto-Save INSERT] Sinh viên [{}] tích câu mới [{}], chọn Option ID: {}",
                     studentId, dto.getQuestionId(), dto.getSelectedOptionId());
+        }
+    }
+
+    private void calculateAndUpdateTotalScore(ClassGrade classGrade) {
+        // Chỉ tiến hành tính điểm tổng kết khi SV ĐÃ CÓ ĐỦ cả 4 cột điểm quan trọng
+        if (classGrade.getRegularScore1() != null &&
+                classGrade.getRegularScore2() != null &&
+                classGrade.getMidtermScore() != null &&
+                classGrade.getFinalScore() != null) {
+
+            log.info("📊 [TOTAL SCORE CALCULATING] Đang tính điểm tổng kết học phần cho sổ điểm ID: {}", classGrade.getId());
+
+            // Công thức trọng số theo yêu cầu: 10% - 10% - 30% - 50%
+            double r1 = classGrade.getRegularScore1() * 0.1;
+            double r2 = classGrade.getRegularScore2() * 0.1;
+            double mid = classGrade.getMidtermScore() * 0.3;
+            double fin = classGrade.getFinalScore() * 0.5;
+
+            double rawTotal = r1 + r2 + mid + fin;
+
+            // Làm tròn lấy 2 chữ số thập phân (Ví dụ: 7.456 -> 7.46)
+            double finalTotalScore = Math.round(rawTotal * 100.0) / 100.0;
+            classGrade.setTotalScore(finalTotalScore);
+
+            // Xét trạng thái PASS/FAIL dựa trên điểm tổng kết hệ 10 (Chuẩn tín chỉ là >= 4.0)
+            if (finalTotalScore >= 4.0) {
+                classGrade.setStatus(ClassGrade.GradeStatus.PASS);
+                log.info("🎉 Kết quả học phần: PASS ({})", finalTotalScore);
+            } else {
+                classGrade.setStatus(ClassGrade.GradeStatus.FAIL);
+                log.warn("❌ Kết quả học phần: FAIL ({})", finalTotalScore);
+            }
+        } else {
+            // Nếu chưa đủ cột điểm (Ví dụ: Mới thi giữa kỳ, chưa thi cuối kỳ), giữ nguyên PENDING
+            classGrade.setStatus(ClassGrade.GradeStatus.PENDING);
+            log.info("ℹ️ [TOTAL SCORE] Chưa đủ cả 4 cột điểm để tính điểm tổng kết. Trạng thái giữ nguyên PENDING.");
         }
     }
 }
