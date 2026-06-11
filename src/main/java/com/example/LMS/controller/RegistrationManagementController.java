@@ -2,6 +2,7 @@ package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.RegistrationPeriodListRequest;
 import com.example.LMS.dto.response.ClassPendingResponse;
+import com.example.LMS.dto.response.RegistrationPeriodDetailResponse;
 import com.example.LMS.dto.response.RegistrationPeriodResponse;
 import com.example.LMS.service.RegistrationManagementService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,6 +55,27 @@ public class RegistrationManagementController {
         request.setSortDirection(sortDirection);
 
         return ResponseEntity.ok(registrationManagementService.getRegistrationPeriods(request));
+    }
+
+    // ============================================================
+    // GET /api/v1/registration-management/periods/{id}
+    // Xem chi tiết đợt đăng ký
+    // ============================================================
+    @GetMapping("/periods/{id}")
+    @PreAuthorize("hasAuthority('CLASS_OPEN_REG')")
+    @Operation(
+            summary = "Xem chi tiết đợt đăng ký",
+            description = """
+                    Trả về đầy đủ thông tin của 1 đợt đăng ký:
+                    - Tên đăng ký, thời gian mở/đóng, tên học kỳ
+                    - Tổng số lớp mở, tổng lượt đăng ký
+                    - Danh sách lớp: mã lớp, tên môn, sĩ số đăng ký/tối đa, giảng viên
+                    """
+    )
+    public ResponseEntity<RegistrationPeriodDetailResponse> getRegistrationPeriodDetail(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(registrationManagementService.getRegistrationPeriodDetail(id));
     }
 
     // ============================================================

@@ -77,6 +77,30 @@ public class GradeController {
                 .data(gradeService.finalizeGrade(classId, request))
                 .build();
     }
+
+    // ============================================================
+    // CHỐT ĐIỂM LỚP (Giảng viên)
+    // POST /api/v1/grades/lock?classId=1
+    // Điều kiện: không còn sinh viên nào status = PENDING
+    // Kết quả: đổi trạng thái lớp sang COMPLETED
+    // Quyền: GRADE_LOCK
+    // ============================================================
+    @PostMapping("/api/v1/grades/lock")
+    @PreAuthorize("hasAuthority('GRADE_LOCK')")
+    @Operation(
+            summary = "Chốt điểm lớp (Giảng viên)",
+            description = "Truyền classId qua query string (?classId=1). " +
+                    "Hệ thống kiểm tra toàn bộ bảng điểm của lớp — nếu còn sinh viên PENDING " +
+                    "thì không cho chốt. " +
+                    "Chỉ giảng viên được phân công dạy lớp đó mới có quyền thực hiện."
+    )
+    public ApiResponse<Void> lockClassGrades(@RequestParam Long classId) {
+        gradeService.lockClassGrades(classId);
+        return ApiResponse.<Void>builder()
+                .code(200)
+                .message("Chốt điểm lớp học phần thành công! Trạng thái lớp đã chuyển sang COMPLETED.")
+                .build();
+    }
     // ============================================================
     // XEM BẢNG ĐIỂM TOÀN KHOÁ (Sinh viên)
     // GET /api/v1/grades/my-transcript

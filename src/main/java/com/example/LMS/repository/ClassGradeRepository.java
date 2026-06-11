@@ -36,4 +36,17 @@ public interface ClassGradeRepository extends JpaRepository<ClassGrade, Long> {
             "ORDER BY g.enrollment.classEntity.semester.startDate ASC, " +
             "         g.enrollment.classEntity.courseId ASC")
     List<ClassGrade> findAllByStudentId(@Param("studentId") Long studentId);
+
+    // Kiểm tra còn sinh viên nào có status PENDING trong lớp không
+    @Query("SELECT COUNT(g) > 0 FROM ClassGrade g " +
+            "WHERE g.enrollment.classEntity.id = :classId " +
+            "AND g.status = com.example.LMS.entity.model.ClassGrade.GradeStatus.PENDING")
+    boolean existsPendingByClassId(@Param("classId") Long classId);
+
+    // Đếm số enrollment (không DROPPED) chưa có bảng điểm trong lớp
+    @Query("SELECT COUNT(e) FROM ClassEnrollment e " +
+            "WHERE e.classEntity.id = :classId " +
+            "AND e.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED " +
+            "AND NOT EXISTS (SELECT g FROM ClassGrade g WHERE g.enrollment.id = e.id)")
+    long countEnrollmentsWithoutGrade(@Param("classId") Long classId);
 }
