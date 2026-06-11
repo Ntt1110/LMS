@@ -38,6 +38,9 @@ public class ExamService {
 
     private final EnrollmentRepository enrollmentRepository;
     private final ClassGradeRepository classGradeRepository;
+
+    private final StudentExamAnswerRepository studentExamAnswerRepository;
+
     // =========================================================================
     // 🌟 1. LUỒNG GIẢNG VIÊN: XEM TẤT CẢ BÀI KIỂM TRA
     // =========================================================================
@@ -473,5 +476,57 @@ public class ExamService {
         StudentExamAttempt attempt = attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên làm bài!"));
         processGrading(attempt, AttemptStatus.FORCED);
+    }
+
+    @Transactional
+    public void saveStudentAnswer(Long attemptId, com.example.LMS.dto.request.SaveAnswerRequestDto dto) {
+        // 1. Lấy thông tin sinh viên đang đăng nhập từ Token
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long studentId = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "Tài khoản không hợp lệ!"))
+                .getId();
+
+        // 2. Kiểm tra phiên làm bài có tồn tại không
+        StudentExamAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên làm bài!"));
+
+        // Security: Chặn trường hợp sinh viên A hack truyền nhầm attemptId của sinh viên B
+        if (!attempt.getStudentId().equals(studentId)) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên bài thi này!");
+        }
+
+        // Kiểm tra xem bài thi còn trong thời gian làm hay đã nộp/bị ép nộp rồi
+        if (attempt.getStatus() != com.example.LMS.entity.Enum.AttemptStatus.IN_PROGRESS) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Bài thi đã kết thúc, không thể lưu thêm đáp án!");
+        }
+
+        // 3. Tìm thực thể Câu hỏi và Đáp án được chọn tương ứng
+        ExamQuestion question = questionRepository.findById(dto.getQuestionId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Câu hỏi không tồn tại!"));
+
+        QuestionOption selectedOption = optionRepository.findById(dto.getSelectedOptionId())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Đáp án lựa chọn không hợp lệ!"));
+
+        // 4. 🔍 THUẬT TOÁN UPSERT: Kiểm tra xem câu này đã từng tích chọn chưa
+        var existingAnswerOpt = studentExamAnswerRepository.findByAttemptIdAndQuestionId(attemptId, dto.getQuestionId());
+
+        if (existingAnswerOpt.isPresent()) {
+            // Sinh viên ĐỔI ĐÁP ÁN -> Chạy lệnh UPDATE đè lên dòng cũ
+            StudentExamAnswer existingAnswer = existingAnswerOpt.get();
+            existingAnswer.setSelectedOption(selectedOption);
+            studentExamAnswerRepository.save(existingAnswer);
+            log.info("🔄 [Auto-Save UPDATE] Sinh viên [{}] đổi đáp án câu [{}], chọn Option ID: {}",
+                    studentId, dto.getQuestionId(), dto.getSelectedOptionId());
+        } else {
+            // Sinh viên LẦN ĐẦU CHỌN CÂU NÀY -> Chạy lệnh INSERT mới
+            StudentExamAnswer newAnswer = StudentExamAnswer.builder()
+                    .attempt(attempt)
+                    .question(question)
+                    .selectedOption(selectedOption)
+                    .build();
+            studentExamAnswerRepository.save(newAnswer);
+            log.info("✅ [Auto-Save INSERT] Sinh viên [{}] tích câu mới [{}], chọn Option ID: {}",
+                    studentId, dto.getQuestionId(), dto.getSelectedOptionId());
+        }
     }
 }

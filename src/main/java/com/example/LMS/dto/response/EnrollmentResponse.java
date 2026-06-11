@@ -9,6 +9,7 @@ import java.time.LocalTime;
 
 @Getter
 @Setter
+
 @Builder
 public class EnrollmentResponse {
     // Môn học
