@@ -1,6 +1,7 @@
 package com.example.LMS.service;
 
 import com.example.LMS.dto.request.AssignPermissionsRequest;
+import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.dto.response.PermissionResponse;
 import com.example.LMS.dto.response.RoleResponse;
 import com.example.LMS.entity.model.Permission;
@@ -8,6 +9,9 @@ import com.example.LMS.entity.model.Role;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.PermissionRepository;
 import com.example.LMS.repository.RoleRepository;
+import com.example.LMS.repository.UserRepository;
+import com.example.LMS.security.JwtService;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -25,7 +29,8 @@ public class AuthorizationService {
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
-
+    private final JwtService jwtService;
+    private final UserRepository userRepository;
     // =========================================================================
     // 1. LẤY TẤT CẢ VAI TRÒ (ROLES) KÈM THEO DANH SÁCH MÃ QUYỀN CỦA NÓ
     // =========================================================================
@@ -88,5 +93,42 @@ public class AuthorizationService {
         // 4. Lưu lại vào Database
         roleRepository.save(role);
         log.info("✅ Cập nhật thành công! Role [{}] hiện tại đang sở hữu {} quyền.", role.getCode(), checkPermissions.size());
+    }
+
+    public AuthResponse refreshAccessToken(String refreshToken) {
+        // 1. Kiểm tra xem Refresh Token gửi lên có trống không
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Refresh Token không được để trống!");
+        }
+
+        try {
+            // 2. Giải mã và trích xuất thông tin từ Refresh Token cũ
+            String username = jwtService.extractUsername(refreshToken);
+
+            // 3. Tìm kiếm User trong hệ thống để đảm bảo tài khoản không bị khóa hoặc xóa
+            var user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "Tài khoản không tồn tại hoặc không hợp lệ!"));
+
+            // 4. Kiểm tra xem Refresh Token có thực sự hợp lệ và còn hạn không
+            if (!jwtService.isTokenValid(refreshToken, user)) {
+                throw new CustomException(HttpStatus.UNAUTHORIZED, "Refresh Token đã hết hạn hoặc không hợp lệ! Vui lòng đăng nhập lại.");
+            }
+
+            // 5. Nếu mọi thứ xanh mượt -> Tiến hành sinh cặp Token mới tinh
+            Claims claims = jwtService.extractAllClaimsPublic(refreshToken);
+            String newAccessToken = jwtService.generateTokenFromClaims(claims, username);
+            String newRefreshToken = jwtService.generateRefreshToken(user); // Sinh thêm cả Refresh mới để xoay vòng bảo mật (Token Rotation)
+
+            log.info("🔄 [JWT REFRESH] Tái cấp Access Token thành công cho tài khoản: {}", username);
+
+            return AuthResponse.builder()
+                    .accessToken(newAccessToken)
+                    .refreshToken(newRefreshToken)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("🚨 [JWT REFRESH ERROR] Lỗi giải mã Refresh Token: {}", e.getMessage());
+            throw new CustomException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ! Vui lòng thực hiện đăng nhập lại.");
+        }
     }
 }

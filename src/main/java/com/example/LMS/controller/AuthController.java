@@ -8,6 +8,7 @@ import com.example.LMS.security.JwtService;
 
 
 import com.example.LMS.service.AuthService;
+import com.example.LMS.service.AuthorizationService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,8 @@ public class AuthController {
     private final JwtService jwtService;
     private final AuthService authService;
 
+    private final AuthorizationService authorizationService;
+
 
 
 
@@ -44,6 +47,17 @@ public class AuthController {
                 .data(responseData)
                 .build();
     }
+    @PostMapping("/refresh")
+    @Operation(summary = "Đổi mã Refresh Token để lấy cặp Access Token mới khi mã cũ hết hạn")
+    public ApiResponse<AuthResponse> refreshToken(@RequestParam String refreshToken) {
+
+        return ApiResponse.<AuthResponse>builder()
+                .code(200)
+                .message("Cấp mới Access Token thành công!")
+                .data(authorizationService.refreshAccessToken(refreshToken))
+                .build();
+    }
+
 
     @GetMapping("/profile/me")
     @Operation(summary = "Lấy thông tin hồ sơ của chính người dùng đang đăng nhập", description = "Tự động nhận diện User qua Token gán ở Header")

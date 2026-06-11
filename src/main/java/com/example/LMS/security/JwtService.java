@@ -105,4 +105,22 @@ public class JwtService {
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
+    public String generateTokenFromClaims(Claims claims, String username) {
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(username)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration)) // Thời gian hết hạn của Access Token
+                .signWith(getSignInKey(), SignatureAlgorithm.HS512)
+                .compact();
+    }
+    // Hàm public giúp tầng Service lấy toàn bộ nội dung Claims ra để kiểm tra
+    public Claims extractAllClaimsPublic(String token) {
+        return Jwts.parser()
+                .verifyWith(getSignInKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
 }
