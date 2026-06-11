@@ -17,6 +17,9 @@ public interface MajorRepository extends JpaRepository<Major, Long>, JpaSpecific
     // Xem chi tiết theo id, chưa bị xóa mềm
     Optional<Major> findByIdAndDeletedAtIsNull(Long id);
 
+    // Kiểm tra mã ngành đã tồn tại chưa
+    boolean existsByCode(String code);
+
 
     @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(m.id, m.name) " +
             "FROM Major m")
