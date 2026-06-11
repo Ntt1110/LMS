@@ -1,10 +1,14 @@
 package com.example.LMS.dto.response;
 
 import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+@Getter
+@Setter
 
 @Builder
 public class EnrollmentResponse {
@@ -30,3 +34,4 @@ public class EnrollmentResponse {
 
     private LocalDateTime enrolledAt;
 }
+
