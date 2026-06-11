@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalTime;
 import java.util.List;
 
 @Getter
@@ -33,6 +34,8 @@ public class CourseWithClassesResponse {
         private Integer dayOfWeek;   // Thứ mấy (2=Thứ 2, 3=Thứ 3...)
         private String shiftName;    // Ca mấy (Ca 1, Ca 2...)
         private String roomName;     // Phòng nào
+        private LocalTime startTimeShilf;
+        private LocalTime endTimeShilf;
 
         // Sĩ số
         private Integer currentStudents;  // Sĩ số hiện tại
