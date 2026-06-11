@@ -4,14 +4,9 @@ import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.LoginRequest;
 import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.dto.response.UserProfileResponse;
-import com.example.LMS.entity.model.Permission;
-import com.example.LMS.entity.model.Role;
-import com.example.LMS.entity.model.User;
-import com.example.LMS.entity.model.UserProfile;
+import com.example.LMS.entity.model.*;
 import com.example.LMS.exception.CustomException;
-import com.example.LMS.repository.RoleRepository;
-import com.example.LMS.repository.UserProfileRepository;
-import com.example.LMS.repository.UserRepository;
+import com.example.LMS.repository.*;
 import com.example.LMS.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +31,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final UserProfileRepository userProfileRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
 
     // TODO: Tiêm thêm UserProfileRepository và PermissionRepository vào đây ở các bước sau
 
@@ -124,8 +121,7 @@ public class AuthService {
         UserProfile profile = userProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Hồ sơ người dùng không tồn tại!"));
 
-        // 4. Map sang DTO Response để trả về (Dùng lại cái DTO UserProfileResponse hôm trước)
-        return UserProfileResponse.builder()
+        UserProfileResponse.UserProfileResponseBuilder responseBuilder = UserProfileResponse.builder()
                 .id(profile.getId())
                 .userId(user.getId())
                 .fullName(profile.getFullName())
@@ -133,8 +129,40 @@ public class AuthService {
                 .birthday(profile.getBirthday() != null ? profile.getBirthday().toString() : null)
                 .gender(profile.getGender() != null ? profile.getGender().name() : null)
                 .avatarUrl(profile.getAvatarUrl())
-                .address(profile.getAddress())
-                .build();
+                .address(profile.getAddress());
+        List < String > authorities = user.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .toList();
+
+        if (authorities.contains("ROLE_STUDENT")) {
+            responseBuilder.role("STUDENT");
+            // Đi thẳng từ Object User sang StudentProfile nhờ quan hệ hai chiều đã cấu hình
+            StudentProfile student = user.getStudentProfile();
+            if (student != null) {
+                responseBuilder.studentCode(student.getStudentCode());
+                responseBuilder.cohort(student.getCohort());
+                if (student.getMajor() != null) {
+                    responseBuilder.majorName(student.getMajor().getName()); // Lấy tên ngành học
+                }
+            }
+        } else if (authorities.contains("ROLE_INSTRUCTOR") || authorities.contains("ROLE_TEACHER")) {
+            responseBuilder.role("TEACHER");
+            // Đi thẳng từ Object User sang TeacherProfile
+            TeacherProfile teacher = user.getTeacherProfile();
+            if (teacher != null) {
+                responseBuilder.employeeCode(teacher.getEmployeeCode());
+                responseBuilder.academicTitle(teacher.getAcademicTitle());
+                responseBuilder.specialization(teacher.getSpecialization());
+                if (teacher.getDepartment() != null) {
+                    responseBuilder.departmentName(teacher.getDepartment().getName()); // Lấy tên khoa/bộ môn
+                }
+            }
+        } else {
+            responseBuilder.role("USER");
+        }
+
+        return responseBuilder.build();
     }
 }
+
 
