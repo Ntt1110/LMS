@@ -23,4 +23,7 @@ public class ClassResponse {
     private String managerName;
     private Long lecturerId;
     private String lecturerName;
+
+
+    private String room;
 }

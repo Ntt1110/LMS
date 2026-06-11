@@ -13,6 +13,7 @@ import com.example.LMS.entity.model.StudentProfile;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -22,10 +23,15 @@ import jakarta.persistence.criteria.Subquery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClassService {
@@ -321,5 +327,80 @@ public class ClassService {
                             .enrollmentStatus(e.getStatus().name())
                             .build();
                 }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClassResponse> getClassesBySemester(Long semesterId) {
+        log.info("🔍 Đang tải danh sách lớp học phần theo học kỳ ID: {}", semesterId);
+
+        // 1. Kéo toàn bộ danh sách lớp thuộc kỳ này từ DB (Hàm findBySemesterId ông đã định nghĩa trong ClassEntityRepository)
+        List<ClassEntity> classes = classRepository.findBySemesterId(semesterId);
+        if (classes.isEmpty()) {
+            return List.of();
+        }
+
+        // 2. 🚀 TỐI ƯU HIỆU NĂNG: Thu thập tất cả các ID liên quan để không bị dính lỗi N+1 Query
+        List<Long> courseIds = classes.stream()
+                .map(ClassEntity::getCourseId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        List<Long> userIds = classes.stream()
+                .flatMap(c -> java.util.stream.Stream.of(c.getManagerId(), c.getLecturerId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        // 3. Sử dụng findAllById (có sẵn của JpaRepository) để bốc toàn bộ bản ghi lên bộ nhớ tạm trong 1 câu SQL duy nhất
+        Map<Long, Course> courseMap = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, course -> course));
+
+        Map<Long, User> userMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+
+        // 4. Duyệt danh sách lớp để map dữ liệu chuẩn đét vào ClassResponse DTO của ông
+        return classes.stream().map(c -> {
+
+            // Xử lý bốc phòng học an toàn từ danh sách schedules liên kết trong ClassEntity
+            String displayRoom = "Chưa xếp phòng";
+            if (c.getSchedules() != null && !c.getSchedules().isEmpty()) {
+                displayRoom = c.getSchedules().get(0).getRoom().toString();
+            }
+
+            // Tìm thông tin môn học (Course) từ Map
+            Course course = courseMap.get(c.getCourseId());
+            String courseName = (course != null) ? course.getName() : "Không rõ môn học";
+            String courseCode = (course != null) ? course.getCode() : "N/A";
+
+            // Tìm thông tin Giáo vụ (Manager) từ Map và lấy fullName từ profile của User
+            User manager = userMap.get(c.getManagerId());
+            String managerName = (manager != null && manager.getProfile() != null)
+                    ? manager.getProfile().getFullName() : "Hệ thống";
+
+            // Tìm thông tin Giảng viên (Lecturer) từ Map và lấy fullName từ profile của User
+            User lecturer = userMap.get(c.getLecturerId());
+            String lecturerName = (lecturer != null && lecturer.getProfile() != null)
+                    ? lecturer.getProfile().getFullName() : "Chưa phân công";
+
+            // Khớp 100% với Builder của ClassResponse yêu cầu
+            return ClassResponse.builder()
+                    .id(c.getId())
+                    .code(c.getCode())
+                    .status(c.getStatus() != null ? c.getStatus().name() : "PENDING")
+                    .room(displayRoom)
+                    // Thông tin ID liên kết
+                    .courseId(c.getCourseId())
+                    .managerId(c.getManagerId())
+                    .lecturerId(c.getLecturerId())
+                    // Dữ liệu thật đã bốc thành công từ các bảng liên quan:
+                    .courseName(courseName)
+                    .courseCode(courseCode)
+                 //   .managerName(managerName)
+                    .lecturerName(lecturerName)
+                    .semesterId(c.getSemester() != null ? c.getSemester().getId() : semesterId)
+                    .semesterCode(c.getSemester() != null ? c.getSemester().getSemesterCode() : null)
+                    .build();
+        }).toList();
     }
 }
