@@ -2,15 +2,11 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.request.SemesterCreateRequest;
 import com.example.LMS.dto.request.SemesterListRequest;
-import com.example.LMS.dto.response.ClassResponse;
 import com.example.LMS.dto.response.SemesterResponse;
-import com.example.LMS.entity.model.ClassEntity;
-import com.example.LMS.entity.model.Course;
+import com.example.LMS.entity.Enum.ClassStatus;
 import com.example.LMS.entity.model.Semester;
-import com.example.LMS.entity.model.User;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.ClassEntityRepository;
-import com.example.LMS.repository.CourseRepository;
 import com.example.LMS.repository.SemesterRepository;
 import com.example.LMS.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.LMS.dto.response.SemesterDetailResponse;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
@@ -36,8 +28,6 @@ public class SemesterService {
 
     private final SemesterRepository semesterRepository;
     private final ClassEntityRepository classRepository;
-    private final CourseRepository courseRepository;
-    private final UserRepository userRepository;
 
     // ============================================================
     // DANH SÁCH HỌC KỲ có filter + phân trang
@@ -140,6 +130,35 @@ public class SemesterService {
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
+    }
+    @Transactional
+    public void closeSemester(Long semesterId) {
+        log.info("⏳ Hệ thống đang tiến hành kiểm tra để đóng học kỳ ID: {}", semesterId);
+
+        // 1. Kiểm tra học kỳ có tồn tại trong hệ thống không
+        Semester semester = semesterRepository.findByIdAndDeletedAtIsNull(semesterId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy học kỳ yêu cầu hoặc học kỳ đã bị xóa!"));
+
+        // 2. Nếu học kỳ đã đóng từ trước rồi thì không cần xử lý lại
+        if (semester.getStatus() == Semester.SemesterStatus.CLOSED) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Học kỳ này đã được đóng từ trước đó!");
+        }
+
+        // 3. 🚨 NGHIỆP VỤ CỐT LÕI: Đếm số lượng lớp chưa hoàn thành (Chưa thành COMPLETED hoặc CANCELED)
+        List<ClassStatus> finishedStatuses = List.of(ClassStatus.COMPLETED, ClassStatus.CANCELED);
+        long incompleteClassesCount = classRepository.countBySemesterIdAndStatusNotInAndDeletedAtIsNull(semesterId, finishedStatuses);
+
+        if (incompleteClassesCount > 0) {
+            log.warn("🚨 Chặn đóng học kỳ ID [{}]: Còn {} lớp học phần chưa chuyển sang trạng thái COMPLETED!", semesterId, incompleteClassesCount);
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    String.format("Không thể đóng học kỳ! Hiện tại vẫn còn %d lớp học phần đang diễn ra hoặc chưa hoàn thành nhập điểm.", incompleteClassesCount));
+        }
+
+        // 4. Nếu mọi điều kiện đều xanh mượt -> Thực hiện đóng học kỳ và chuyển trạng thái
+        semester.setStatus(Semester.SemesterStatus.CLOSED);
+        semesterRepository.save(semester);
+
+        log.info("✅ Đóng thành công học kỳ mã [{}]. Toàn bộ lớp học phần đã được khóa sổ điểm an toàn.", semester.getSemesterCode());
     }
 
 }
