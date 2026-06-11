@@ -49,7 +49,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Báo cho Spring biết là Stateless
                 .authorizeHttpRequests(auth -> auth
                         // Cấu hình các API Public (Ai cũng gọi được không cần Token)
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
+                        .requestMatchers("/api/v1/auth/login").permitAll()
+                        .requestMatchers("/api/v1/auth/refresh").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll() // Mở swagger để xem tài liệu
                         // Tất cả các request khác phải có Token hợp lệ
                         .anyRequest().authenticated()

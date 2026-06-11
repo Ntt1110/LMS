@@ -33,6 +33,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+        if (request.getServletPath().contains("/api/v1/auth/refresh")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // 1. Lấy Header có tên là "Authorization"
         final String authHeader = request.getHeader("Authorization");
