@@ -2,17 +2,22 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.request.RegistrationPeriodListRequest;
 import com.example.LMS.dto.request.RegistrationPeriodRequestDto;
+import com.example.LMS.dto.response.ClassInPeriodResponse;
 import com.example.LMS.dto.response.ClassPendingResponse;
+import com.example.LMS.dto.response.RegistrationPeriodDetailResponse;
 import com.example.LMS.dto.response.RegistrationPeriodResponse;
 import com.example.LMS.entity.Enum.ClassStatus;
 import com.example.LMS.entity.Enum.RegistrationStatus;
+import com.example.LMS.entity.model.Course;
 import com.example.LMS.entity.model.RegistrationPeriod;
 import com.example.LMS.entity.model.Semester;
 import com.example.LMS.exception.CustomException;
 import com.example.LMS.repository.ClassEntityRepository;
 import com.example.LMS.repository.CourseRepository;
+import com.example.LMS.repository.EnrollmentRepository;
 import com.example.LMS.repository.RegistrationPeriodRepository;
 import com.example.LMS.repository.SemesterRepository;
+import com.example.LMS.repository.UserProfileRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +42,8 @@ public class RegistrationManagementService {
     private final CourseRepository courseRepository;
     private final SemesterRepository semesterRepository;
     private final ObjectMapper objectMapper;
+    private final EnrollmentRepository enrollmentRepository;
+    private final UserProfileRepository userProfileRepository;
     // ============================================================
     // DANH SÁCH ĐỢT ĐĂNG KÝ
     // ============================================================
@@ -91,8 +98,69 @@ public class RegistrationManagementService {
     }
 
     // ============================================================
-// TẠO ĐỢT ĐĂNG KÝ
-// ============================================================
+    // XEM CHI TIẾT ĐỢT ĐĂNG KÝ
+    // ============================================================
+    @Transactional(readOnly = true)
+    public RegistrationPeriodDetailResponse getRegistrationPeriodDetail(Long periodId) {
+        log.info("⏳ Lấy chi tiết đợt đăng ký ID: {}", periodId);
+
+        // 1. Tìm đợt đăng ký
+        RegistrationPeriod period = periodRepository.findById(periodId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy đợt đăng ký với id: " + periodId));
+
+        // 2. Lấy danh sách lớp thuộc đợt (chưa xóa mềm)
+        var classes = classRepository.findByRegistrationPeriodIdAndDeletedAtIsNull(periodId);
+
+        // 3. Map từng lớp sang DTO — lấy thêm tên môn, số đăng ký, tên giảng viên
+        List<ClassInPeriodResponse> classResponses = classes.stream().map(c -> {
+
+            // Tên môn học
+            Course course = courseRepository.findById(c.getCourseId()).orElse(null);
+
+            // Sĩ số đã đăng ký (không tính DROPPED)
+            int enrolledCount = classRepository.countEnrollmentsByClassId(c.getId());
+
+            // Tên giảng viên
+            String lecturerName = null;
+            if (c.getLecturerId() != null) {
+                lecturerName = userProfileRepository.findByUserId(c.getLecturerId())
+                        .map(p -> p.getFullName())
+                        .orElse(null);
+            }
+
+            return ClassInPeriodResponse.fromEntity(c, course, enrolledCount, lecturerName);
+        }).collect(Collectors.toList());
+
+        // 4. Tính tổng
+        int totalClasses = classResponses.size();
+        int totalEnrollments = classResponses.stream()
+                .mapToInt(ClassInPeriodResponse::getEnrolledCount)
+                .sum();
+
+        // 5. Tên học kỳ
+        String semesterName = "Học kỳ " + period.getSemester().getSemesterNumber()
+                + " - " + period.getSemester().getAcademicYear();
+
+        log.info("✅ Lấy chi tiết đợt đăng ký thành công: {} lớp, {} lượt đăng ký", totalClasses, totalEnrollments);
+
+        return RegistrationPeriodDetailResponse.builder()
+                .id(period.getId())
+                .name(period.getName())
+                .startTime(period.getStartTime())
+                .endTime(period.getEndTime())
+                .status(period.getStatus() != null ? period.getStatus().name() : null)
+                .semesterId(period.getSemester().getId())
+                .semesterName(semesterName)
+                .totalClasses(totalClasses)
+                .totalEnrollments(totalEnrollments)
+                .classes(classResponses)
+                .build();
+    }
+
+    // ============================================================
+    // TẠO ĐỢT ĐĂNG KÝ
+    // ============================================================
     @Transactional
     public RegistrationPeriodResponse createRegistrationPeriod(RegistrationPeriodRequestDto dto) {
         log.info("⏳ Tạo đợt đăng ký: {}", dto.getName());

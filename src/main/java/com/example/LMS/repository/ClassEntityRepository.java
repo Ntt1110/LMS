@@ -52,8 +52,6 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
             "AND c.deletedAt IS NULL")
     List<ClassEntity> findActiveClassesByStudentId(@Param("studentId") Long studentId);
 
-
-
     // Lấy lịch học của một lớp cụ thể (dùng cho API chi tiết lớp của sinh viên)
     @Query("""
         SELECT cs FROM ClassSchedule cs
@@ -62,17 +60,20 @@ public interface ClassEntityRepository extends JpaRepository<ClassEntity, Long>,
     """)
     List<com.example.LMS.entity.model.ClassSchedule> findSchedulesByClassId(@Param("classId") Long classId);
 
-    // Lấy danh sách lớp đã đăng ký theo trạng thái (ONGOING / COMPLETED)
+    // Lấy danh sách lớp đã đăng ký (ONGOING + COMPLETED)
     @Query("""
         SELECT c FROM ClassEntity c
         JOIN ClassEnrollment e ON e.classEntity.id = c.id
         WHERE e.studentId = :studentId
         AND e.status != com.example.LMS.entity.Enum.EnrollmentStatus.DROPPED
-        AND c.status = :classStatus
+        AND c.status IN :classStatuses
         AND c.deletedAt IS NULL
     """)
-    List<ClassEntity> findClassesByStudentIdAndClassStatus(
+    List<ClassEntity> findClassesByStudentIdAndClassStatuses(
             @Param("studentId") Long studentId,
-            @Param("classStatus") ClassStatus classStatus
+            @Param("classStatuses") List<ClassStatus> classStatuses
     );
+
+    // Lấy tất cả lớp thuộc đợt đăng ký (dùng cho API xem chi tiết đợt)
+    List<ClassEntity> findByRegistrationPeriodIdAndDeletedAtIsNull(Long registrationPeriodId);
 }

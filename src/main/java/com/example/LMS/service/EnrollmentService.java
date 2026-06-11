@@ -133,29 +133,16 @@ public class EnrollmentService {
     }
 
     // ============================================================
-    // XEM DANH SÁCH LỚP ĐÃ ĐĂNG KÝ (ONGOING / COMPLETED)
+    // XEM DANH SÁCH LỚP ĐÃ ĐĂNG KÝ (ONGOING + COMPLETED)
     // ============================================================
-    public List<EnrollmentResponse> getMyEnrollmentsByStatus(String statusParam) {
-
+    public List<EnrollmentResponse> getMyRegisteredEnrollments() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         var student = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
 
-        ClassStatus classStatus;
-        try {
-            classStatus = ClassStatus.valueOf(statusParam.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new CustomException(HttpStatus.BAD_REQUEST,
-                    "Trạng thái không hợp lệ! Chỉ chấp nhận: ONGOING, COMPLETED");
-        }
-
-        if (classStatus != ClassStatus.ONGOING && classStatus != ClassStatus.COMPLETED) {
-            throw new CustomException(HttpStatus.BAD_REQUEST,
-                    "Trạng thái không hợp lệ! Chỉ chấp nhận: ONGOING, COMPLETED");
-        }
-
         return classEntityRepository
-                .findClassesByStudentIdAndClassStatus(student.getId(), classStatus)
+                .findClassesByStudentIdAndClassStatuses(student.getId(),
+                        List.of(ClassStatus.ONGOING, ClassStatus.COMPLETED))
                 .stream()
                 .map(c -> {
                     var enrollment = enrollmentRepository
