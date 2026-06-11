@@ -385,68 +385,105 @@ public class UserService {
 
         userProfileRepository.save(profile);
 
-        // 3. Nếu là INSTRUCTOR hoặc HEAD_OF_DEPT → cập nhật teacher_profiles
+        // 3. Nếu là INSTRUCTOR hoặc HEAD_OF_DEPT → tạo mới hoặc cập nhật teacher_profiles
         if (roles.contains("INSTRUCTOR") || roles.contains("HEAD_OF_DEPT")) {
 
-            TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(id)
-                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
-                            "Không tìm thấy hồ sơ giảng viên!"));
+            TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(id).orElse(null);
 
-            // Mã GV
-            if (request.getEmployeeCode() != null && !request.getEmployeeCode().isBlank()) {
-                teacherProfile.setEmployeeCode(request.getEmployeeCode().trim());
-            }
-
-            // Id khoa
-            if (request.getDepartmentId() != null) {
+            if (teacherProfile == null) {
+                // Chưa có hồ sơ → tạo mới, yêu cầu bắt buộc employeeCode + departmentId
+                if (request.getEmployeeCode() == null || request.getEmployeeCode().isBlank()) {
+                    throw new CustomException(HttpStatus.BAD_REQUEST,
+                            "Hồ sơ giảng viên chưa tồn tại, cần cung cấp mã giảng viên (employeeCode) để tạo mới!");
+                }
+                if (request.getDepartmentId() == null) {
+                    throw new CustomException(HttpStatus.BAD_REQUEST,
+                            "Hồ sơ giảng viên chưa tồn tại, cần cung cấp khoa (departmentId) để tạo mới!");
+                }
                 Department department = departmentRepository.findById(request.getDepartmentId())
                         .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
                                 "Không tìm thấy khoa với id: " + request.getDepartmentId()));
-                teacherProfile.setDepartment(department);
+
+                teacherProfile = TeacherProfile.builder()
+                        .user(user)
+                        .employeeCode(request.getEmployeeCode().trim())
+                        .department(department)
+                        .academicTitle(request.getAcademicTitle() != null ? request.getAcademicTitle().trim() : null)
+                        .specialization(request.getSpecialization() != null ? request.getSpecialization().trim() : null)
+                        .isVisiting(request.getIsVisiting() != null ? request.getIsVisiting() : false)
+                        .build();
+                log.info("🆕 Tạo mới teacher_profile cho user ID: {}", id);
+            } else {
+                // Đã có hồ sơ → cập nhật các trường được gửi lên
+                if (request.getEmployeeCode() != null && !request.getEmployeeCode().isBlank())
+                    teacherProfile.setEmployeeCode(request.getEmployeeCode().trim());
+
+                if (request.getDepartmentId() != null) {
+                    Department department = departmentRepository.findById(request.getDepartmentId())
+                            .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                                    "Không tìm thấy khoa với id: " + request.getDepartmentId()));
+                    teacherProfile.setDepartment(department);
+                }
+
+                if (request.getAcademicTitle() != null)
+                    teacherProfile.setAcademicTitle(request.getAcademicTitle().trim());
+
+                if (request.getSpecialization() != null)
+                    teacherProfile.setSpecialization(request.getSpecialization().trim());
+
+                if (request.getIsVisiting() != null)
+                    teacherProfile.setIsVisiting(request.getIsVisiting());
             }
-
-            // Học hàm học vị
-            if (request.getAcademicTitle() != null)
-                teacherProfile.setAcademicTitle(request.getAcademicTitle().trim());
-
-            // Chuyên môn
-            if (request.getSpecialization() != null)
-                teacherProfile.setSpecialization(request.getSpecialization().trim());
-
-            // Loại hợp đồng (false = cơ hữu, true = thỉnh giảng)
-            if (request.getIsVisiting() != null)
-                teacherProfile.setIsVisiting(request.getIsVisiting());
 
             teacherProfileRepository.save(teacherProfile);
-            log.info("✅ Đã cập nhật teacher_profile cho user ID: {}", id);
+            log.info("✅ Đã lưu teacher_profile cho user ID: {}", id);
         }
 
-        // 4. Nếu là STUDENT → cập nhật student_profiles
+        // 4. Nếu là STUDENT → tạo mới hoặc cập nhật student_profiles
         if (roles.contains("STUDENT")) {
 
-            StudentProfile studentProfile = studentProfileRepository.findByUserId(id)
-                    .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
-                            "Không tìm thấy hồ sơ sinh viên!"));
+            StudentProfile studentProfile = studentProfileRepository.findByUserId(id).orElse(null);
 
-            // Mã SV
-            if (request.getStudentCode() != null && !request.getStudentCode().isBlank()) {
-                studentProfile.setStudentCode(request.getStudentCode().trim());
-            }
-
-            // Khóa học
-            if (request.getCohort() != null)
-                studentProfile.setCohort(request.getCohort());
-
-            // Ngành học
-            if (request.getMajorId() != null) {
+            if (studentProfile == null) {
+                // Chưa có hồ sơ → tạo mới, yêu cầu bắt buộc studentCode + majorId
+                if (request.getStudentCode() == null || request.getStudentCode().isBlank()) {
+                    throw new CustomException(HttpStatus.BAD_REQUEST,
+                            "Hồ sơ sinh viên chưa tồn tại, cần cung cấp mã sinh viên (studentCode) để tạo mới!");
+                }
+                if (request.getMajorId() == null) {
+                    throw new CustomException(HttpStatus.BAD_REQUEST,
+                            "Hồ sơ sinh viên chưa tồn tại, cần cung cấp ngành học (majorId) để tạo mới!");
+                }
                 Major major = majorRepository.findByIdAndDeletedAtIsNull(request.getMajorId())
                         .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
                                 "Không tìm thấy ngành học với id: " + request.getMajorId()));
-                studentProfile.setMajor(major);
+
+                studentProfile = StudentProfile.builder()
+                        .user(user)
+                        .studentCode(request.getStudentCode().trim())
+                        .major(major)
+                        .cohort(request.getCohort())
+                        .status(StudentProfile.Status.STUDYING)
+                        .build();
+                log.info("🆕 Tạo mới student_profile cho user ID: {}", id);
+            } else {
+                // Đã có hồ sơ → cập nhật các trường được gửi lên
+                if (request.getStudentCode() != null && !request.getStudentCode().isBlank())
+                    studentProfile.setStudentCode(request.getStudentCode().trim());
+
+                if (request.getCohort() != null)
+                    studentProfile.setCohort(request.getCohort());
+
+                if (request.getMajorId() != null) {
+                    Major major = majorRepository.findByIdAndDeletedAtIsNull(request.getMajorId())
+                            .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                                    "Không tìm thấy ngành học với id: " + request.getMajorId()));
+                    studentProfile.setMajor(major);
+                }
             }
 
             studentProfileRepository.save(studentProfile);
-            log.info("✅ Đã cập nhật student_profile cho user ID: {}", id);
+            log.info("✅ Đã lưu student_profile cho user ID: {}", id);
         }
 
         log.info("✅ Cập nhật tài khoản user ID: {} thành công", id);
