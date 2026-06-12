@@ -4,6 +4,8 @@ import com.example.LMS.dto.request.CourseApproveRequest;
 import com.example.LMS.dto.request.CourseListRequest;
 import com.example.LMS.dto.request.CourseProposalRequest;
 import com.example.LMS.dto.request.CourseRejectRequest;
+import com.example.LMS.dto.request.UpdateCourseRequest;
+import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.CourseResponse;
 import com.example.LMS.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -101,6 +103,49 @@ public class CourseController {
             description = "Từ chối môn học đang ở trạng thái PENDING. Bắt buộc phải có lý do.")
     public ResponseEntity<CourseResponse> rejectCourse(@Valid @RequestBody CourseRejectRequest request) {
         return ResponseEntity.ok(courseService.rejectCourse(request));
+    }
+    // ============================================================
+    // PUT /api/v1/courses/{id}
+    // Sửa môn học
+    // ============================================================
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('COURSE_EDIT')")
+    @Operation(
+            summary = "Sửa môn học",
+            description = "Cập nhật thông tin môn học (tên, số tín chỉ, số tiết, mô tả, khoa). " +
+                    "Không cho phép đổi mã môn học. Chỉ sửa được môn học ở trạng thái PENDING hoặc APPROVED."
+    )
+    public ResponseEntity<ApiResponse<CourseResponse>> updateCourse(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateCourseRequest request
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<CourseResponse>builder()
+                        .code(200)
+                        .message("Cập nhật môn học thành công!")
+                        .data(courseService.updateCourse(id, request))
+                        .build()
+        );
+    }
+
+    // ============================================================
+    // DELETE /api/v1/courses/{id}
+    // Xóa mềm môn học (soft delete — set deleted_at = now())
+    // ============================================================
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('COURSE_DELETE')")
+    @Operation(
+            summary = "Xóa mềm môn học",
+            description = "Đánh dấu môn học là đã xóa (set deleted_at). Dữ liệu vẫn còn trong DB, không xóa vật lý."
+    )
+    public ResponseEntity<ApiResponse<Void>> deleteCourse(@PathVariable Long id) {
+        courseService.deleteCourse(id);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .code(200)
+                        .message("Xóa môn học thành công!")
+                        .build()
+        );
     }
 
 

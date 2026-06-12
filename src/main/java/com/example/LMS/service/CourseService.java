@@ -4,6 +4,7 @@ import com.example.LMS.dto.request.CourseApproveRequest;
 import com.example.LMS.dto.request.CourseListRequest;
 import com.example.LMS.dto.request.CourseProposalRequest;
 import com.example.LMS.dto.request.CourseRejectRequest;
+import com.example.LMS.dto.request.UpdateCourseRequest;
 import com.example.LMS.dto.response.CourseResponse;
 import com.example.LMS.entity.model.Course;
 import com.example.LMS.entity.model.Department;
@@ -44,11 +45,10 @@ public class CourseService {
     }
 
     // ============================================================
-// DANH SÁCH MÔN HỌC THEO TRƯỞNG KHOA (đang login)
-// ============================================================
+    // DANH SÁCH MÔN HỌC THEO TRƯỞNG KHOA (đang login)
+    // ============================================================
     public Page<CourseResponse> getCoursesByHeadOfDept(int page, int size, String sortBy, String sortDirection) {
 
-        // Lấy user đang login
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         Sort sort = sortDirection.equalsIgnoreCase("asc")
@@ -57,18 +57,12 @@ public class CourseService {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        // JOIN: courses -> departments -> manager (user đang login)
         Specification<Course> spec = (root, query, cb) -> {
             query.distinct(true);
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
 
-            // JOIN courses -> departments
             var deptJoin = root.join("department", JoinType.INNER);
-
-            // departments.manager.username = username đang login
             predicates.add(cb.equal(deptJoin.get("manager").get("username"), username));
-
-            // Chỉ lấy APPROVED
             predicates.add(cb.equal(root.get("status"), Course.Status.APPROVED));
             predicates.add(cb.isNull(root.get("deletedAt")));
 
@@ -124,7 +118,6 @@ public class CourseService {
         return CourseResponse.fromEntity(courseRepository.save(course));
     }
 
-
     // ============================================================
     // DUYỆT MÔN HỌC (COURSE_APPROVE)
     // ============================================================
@@ -147,6 +140,75 @@ public class CourseService {
         course.setRejectReason(request.getRejectReason().trim());
 
         return CourseResponse.fromEntity(courseRepository.save(course));
+    }
+
+    // ============================================================
+    // SỬA MÔN HỌC (COURSE_EDIT)
+    // Chỉ cho sửa khi môn học đang ở trạng thái PENDING hoặc APPROVED
+    // Không cho đổi mã (code) vì là định danh nghiệp vụ
+    // ============================================================
+    public CourseResponse updateCourse(Long id, UpdateCourseRequest request) {
+
+        // 1. Tìm môn học, chưa bị xóa mềm
+        Course course = courseRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(
+                        HttpStatus.NOT_FOUND,
+                        "Không tìm thấy môn học với id: " + id
+                ));
+
+        // 2. Không cho sửa môn học đã REJECTED
+        if (course.getStatus() == Course.Status.REJECTED) {
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "Không thể sửa môn học đã bị từ chối. Vui lòng đề xuất lại."
+            );
+        }
+
+        // 3. Cập nhật khoa (nếu có)
+        if (request.getDepartmentId() != null) {
+            Department department = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new CustomException(
+                            HttpStatus.NOT_FOUND,
+                            "Không tìm thấy khoa với id: " + request.getDepartmentId()
+                    ));
+            course.setDepartment(department);
+        }
+
+        // 4. Cập nhật các trường được gửi lên (null = giữ nguyên)
+        if (request.getName() != null && !request.getName().isBlank())
+            course.setName(request.getName().trim());
+
+        if (request.getCredits() != null)
+            course.setCredits(request.getCredits());
+
+        if (request.getTheoreticalHours() != null)
+            course.setTheoreticalHours(request.getTheoreticalHours());
+
+        if (request.getPracticalHours() != null)
+            course.setPracticalHours(request.getPracticalHours());
+
+        if (request.getDescription() != null)
+            course.setDescription(request.getDescription().trim());
+
+        return CourseResponse.fromEntity(courseRepository.save(course));
+    }
+
+    // ============================================================
+    // XÓA MỀM MÔN HỌC (COURSE_DELETE)
+    // Set deletedAt = now(), không xóa vật lý khỏi DB
+    // ============================================================
+    public void deleteCourse(Long id) {
+
+        // 1. Tìm môn học, chưa bị xóa mềm
+        Course course = courseRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(
+                        HttpStatus.NOT_FOUND,
+                        "Không tìm thấy môn học với id: " + id
+                ));
+
+        // 2. Set thời điểm xóa mềm
+        course.setDeletedAt(java.time.LocalDateTime.now());
+        courseRepository.save(course);
     }
 
     // ============================================================
