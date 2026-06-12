@@ -440,9 +440,10 @@ public class ExamService {
                 calculateAndUpdateTotalScore(classGrade);
 
                 classGrade.setUpdatedAt(LocalDateTime.now());
-                classGradeRepository.save(classGrade);
+                classGradeRepository.saveAndFlush(classGrade);
 
-                log.info("🔄 [GRADE SYNC SUCCESS] Đã lưu điểm {} vào sổ điểm học phần thành công!", finalScore);
+                log.info("🔄 [GRADE SYNC SUCCESS] Đã ép ghi điểm thành công! Tổng điểm: {}, Trạng thái: {}",
+                        classGrade.getTotalScore(), classGrade.getStatus());
             }
 
         } catch (Exception e) {
