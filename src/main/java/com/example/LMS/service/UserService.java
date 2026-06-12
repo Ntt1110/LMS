@@ -27,6 +27,8 @@ import com.example.LMS.entity.model.StudentProfile;
 import com.example.LMS.entity.model.TeacherProfile;
 import com.example.LMS.repository.DepartmentRepository;
 import com.example.LMS.repository.MajorRepository;
+import com.example.LMS.dto.request.LockUserRequest;
+import com.example.LMS.dto.response.ApiResponse;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -488,5 +490,76 @@ public class UserService {
 
         log.info("✅ Cập nhật tài khoản user ID: {} thành công", id);
         return getUserById(id);
+    }
+    // ============================================================
+    // KHÓA TÀI KHOẢN (USER_LOCK)
+    // PATCH /api/v1/users/{id}/lock
+    // ============================================================
+    @Transactional
+    public ApiResponse<Void> lockUser(Long id, LockUserRequest request) {
+
+        // 1. Tìm user, chưa bị xóa mềm
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy người dùng với id: " + id));
+
+        // 2. Không cho khóa tài khoản đang bị khóa rồi
+        if (Boolean.FALSE.equals(user.getIsActive())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Tài khoản này đã bị khóa trước đó!");
+        }
+
+        // 3. Không cho tự khóa bản thân
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (user.getUsername().equals(currentUsername)) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Không thể tự khóa tài khoản của chính mình!");
+        }
+
+        // 4. Thực hiện khóa
+        user.setIsActive(false);
+        user.setLockReason(request.getLockReason().trim());
+        userRepository.save(user);
+
+        log.info("🔒 Tài khoản [{}] đã bị khóa bởi [{}]. Lý do: {}",
+                user.getUsername(), currentUsername, request.getLockReason());
+
+        return ApiResponse.<Void>builder()
+                .code(200)
+                .message("Khóa tài khoản thành công!")
+                .build();
+    }
+
+    // ============================================================
+    // MỞ KHÓA TÀI KHOẢN (USER_UNLOCK)
+    // PATCH /api/v1/users/{id}/unlock
+    // ============================================================
+    @Transactional
+    public ApiResponse<Void> unlockUser(Long id) {
+
+        // 1. Tìm user, chưa bị xóa mềm
+        User user = userRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy người dùng với id: " + id));
+
+        // 2. Không cho mở khóa tài khoản đang hoạt động
+        if (Boolean.TRUE.equals(user.getIsActive())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Tài khoản này đang hoạt động bình thường, không cần mở khóa!");
+        }
+
+        // 3. Thực hiện mở khóa
+        user.setIsActive(true);
+        user.setLockReason(null); // Xóa lý do khóa
+        userRepository.save(user);
+
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("🔓 Tài khoản [{}] đã được mở khóa bởi [{}].",
+                user.getUsername(), currentUsername);
+
+        return ApiResponse.<Void>builder()
+                .code(200)
+                .message("Mở khóa tài khoản thành công!")
+                .build();
     }
 }
