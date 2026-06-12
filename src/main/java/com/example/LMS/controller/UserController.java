@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.example.LMS.dto.request.UpdateUserRequest;
+import com.example.LMS.dto.request.LockUserRequest;
 
 import java.util.List;
 
@@ -154,5 +155,45 @@ public class UserController {
                 .message("Cập nhật tài khoản thành công!")
                 .data(userService.updateUser(id, request))
                 .build();
+    }
+
+    // ============================================================
+    // PATCH /api/v1/users/{id}/lock
+    // Khóa tài khoản người dùng
+    // ============================================================
+    @PatchMapping("/{id}/lock")
+    @PreAuthorize("hasAuthority('USER_LOCK')")
+    @Operation(
+            summary = "Khóa tài khoản người dùng",
+            description = """
+                    Set is_active = false và lưu lý do khóa.
+                    - Không cho khóa tài khoản đã bị khóa rồi (400)
+                    - Không cho tự khóa bản thân (400)
+                    - Yêu cầu quyền USER_LOCK
+                    """
+    )
+    public ResponseEntity<ApiResponse<Void>> lockUser(
+            @PathVariable Long id,
+            @Valid @RequestBody LockUserRequest request
+    ) {
+        return ResponseEntity.ok(userService.lockUser(id, request));
+    }
+
+    // ============================================================
+    // PATCH /api/v1/users/{id}/unlock
+    // Mở khóa tài khoản người dùng
+    // ============================================================
+    @PatchMapping("/{id}/unlock")
+    @PreAuthorize("hasAuthority('USER_UNLOCK')")
+    @Operation(
+            summary = "Mở khóa tài khoản người dùng",
+            description = """
+                    Set is_active = true và xóa lock_reason.
+                    - Không cho mở khóa tài khoản đang hoạt động (400)
+                    - Yêu cầu quyền USER_UNLOCK
+                    """
+    )
+    public ResponseEntity<ApiResponse<Void>> unlockUser(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.unlockUser(id));
     }
 }
