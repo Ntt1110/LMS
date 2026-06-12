@@ -1,7 +1,9 @@
 package com.example.LMS.service;
 
+import com.example.LMS.dto.request.ChangePasswordDto;
 import com.example.LMS.dto.request.CreateUserRequest;
 import com.example.LMS.dto.request.LoginRequest;
+import com.example.LMS.dto.request.ResetPasswordDto;
 import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.dto.response.UserProfileResponse;
 import com.example.LMS.entity.model.*;
@@ -37,6 +39,8 @@ public class AuthService {
    ;
     private final PasswordResetRepository passwordResetRepository;
     private final PasswordEncoder passwordEncoder;
+
+    private final EmailService emailService;
 
     // TODO: Tiêm thêm UserProfileRepository và PermissionRepository vào đây ở các bước sau
 
@@ -169,7 +173,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void resetPassword(com.example.LMS.dto.request.ResetPasswordDto dto) {
+    public void resetPassword(ResetPasswordDto dto) {
         log.info("⏳ Hệ thống đang kiểm tra Token để tiến hành đổi mật khẩu mới...");
 
         // 1. Kiểm tra Token có tồn tại trong bảng password_resets không
@@ -199,6 +203,66 @@ public class AuthService {
         passwordResetRepository.save(passwordReset);
 
         log.info("✅ Đổi mật khẩu thành công cho tài khoản có Username: {}", user.getUsername());
+    }
+
+    @Transactional
+    public void changePassword(ChangePasswordDto dto) {
+        // 1. Lấy thông tin username của người dùng hiện tại từ SecurityContext
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        log.info("⏳ Người dùng [{}] đang yêu cầu đổi mật khẩu...", currentUsername);
+
+        // 2. Tìm kiếm thực thể User trong Database
+        User user = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin tài khoản!"));
+
+        // 3. 🛡️ KIỂM TRA MẬT KHẨU CŨ: So khớp mật khẩu nhập vào với Password băm trong DB
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            log.warn("❌ Đổi mật khẩu thất bại: Mật khẩu cũ nhập vào không chính xác cho user [{}]", currentUsername);
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Mật khẩu cũ không chính xác!");
+        }
+
+        // 4. KIỂM TRA TRÙNG LẶP: Tránh trường hợp đổi mật khẩu mới giống hệt mật khẩu cũ
+        if (passwordEncoder.matches(dto.getNewPassword(), user.getPassword())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "Mật khẩu mới không được trùng với mật khẩu đang sử dụng!");
+        }
+
+        // 5. Tiến hành mã hóa BCrypt mật khẩu mới và cập nhật
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("✅ Thay đổi mật khẩu thành công cho tài khoản [{}]", currentUsername);
+    }
+
+    @Transactional
+    public void processForgotPassword(com.example.LMS.dto.request.ForgotPasswordDto dto) {
+        log.info("⏳ Đang xử lý yêu cầu quên mật khẩu cho email: {}", dto.getEmail());
+
+        // 1. Kiểm tra xem Email có tồn tại trong hệ thống không
+        User user = userRepository.findByEmail(dto.getEmail()) // Giả định UserRepository có hàm findByEmail
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Email này không tồn tại trên hệ thống!"));
+
+        // 2. Tạo chuỗi Token ngẫu nhiên (UUID) và đặt thời hạn sống là 15 phút
+        String generatedToken = java.util.UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+
+        // 3. Lưu thông tin Token vào bảng password_resets
+        PasswordReset passwordReset = PasswordReset.builder()
+                .userId(user.getId())
+                .token(generatedToken)
+                .expiresAt(expiresAt)
+                .isUsed(false)
+                .build();
+        passwordResetRepository.save(passwordReset);
+
+        // 4. 🚀 KÍCH HOẠT GỬI MAIL THẬT CHẠY NGẦM:
+        // Gọi sang EmailService để ném thư đi mà không làm treo hoãn màn hình của user
+        emailService.sendResetPasswordEmail(user.getEmail(), generatedToken);
+
+        log.info("✅ Hoàn tất xử lý. Token đã được lưu DB và bàn giao cho EmailService gửi ngầm.");
     }
 }
 

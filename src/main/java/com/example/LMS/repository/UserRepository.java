@@ -29,6 +29,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     boolean existsByEmail(String email);
 
+    Optional<User> findByEmail (String email);
+
 
     @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(u.id, p.fullName) " +
             "FROM User u " +

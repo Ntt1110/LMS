@@ -64,4 +64,48 @@ public class EmailService {
             log.error("❌ Gửi mail thất bại cho {}. Lý do cụ thể: {}", toEmail, e.getMessage());
         }
     }
+
+    @Async
+    public void sendResetPasswordEmail(String toEmail, String token) {
+        log.info("📧 Bắt đầu tiến hành gửi mail phục hồi mật khẩu ngầm cho: {}", toEmail);
+        try {
+            if (fromEmail == null || fromEmail.isBlank()) {
+                throw new IllegalArgumentException("Biến spring.mail.username đang bị trống!");
+            }
+
+            // Làm sạch email giống hàm trên
+            String cleanFromEmail = fromEmail.replace("\"", "").replace("'", "").trim();
+            String cleanToEmail = toEmail.trim();
+
+            // Cấu hình đường dẫn Link Reset trỏ về giao diện Vue 3 của ông
+            // Sau này lên production ông chỉ cần thay localhost thành domain thật là xong
+            String resetLink = "http://localhost:5173/reset-password?token=" + token;
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(cleanFromEmail);
+            message.setTo(cleanToEmail);
+            message.setSubject("🔑 [LMS] Yêu cầu đặt lại mật khẩu tài khoản");
+
+            // Thiết lập nội dung hướng dẫn sinh viên/giảng viên click đổi pass
+            String content = String.format(
+                    "Xin chào thành viên,\n\n" +
+                            "Hệ thống LMS đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản liên kết với Email này.\n" +
+                            "Vui lòng click vào đường dẫn dưới đây để tiến hành thiết lập mật khẩu mới:\n" +
+                            "%s\n\n" +
+                            "⏰ Lưu ý: Đường dẫn này chỉ có hiệu lực trong vòng 15 phút.\n" +
+                            "Nếu bạn không đưa ra yêu cầu này, vui lòng bỏ qua email hoặc liên hệ với Giáo vụ để được hỗ trợ.\n\n" +
+                            "Trân trọng,\nBan Quản Trị Hệ Thống.",
+                    resetLink
+            );
+
+            message.setText(content);
+
+            // Bắn mail đi
+            mailSender.send(message);
+            log.info("✅ Đã gửi mail chứa link reset mật khẩu thành công tới: {}", cleanToEmail);
+
+        } catch (Exception e) {
+            log.error("❌ Gửi mail phục hồi mật khẩu thất bại cho {}. Lý do: {}", toEmail, e.getMessage());
+        }
+    }
 }
