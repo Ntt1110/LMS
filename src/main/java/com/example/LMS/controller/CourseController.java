@@ -109,7 +109,7 @@ public class CourseController {
     // Sửa môn học
     // ============================================================
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('COURSE_EDIT')")
+    @PreAuthorize("hasAuthority('COURSE_UPDATE')")
     @Operation(
             summary = "Sửa môn học",
             description = "Cập nhật thông tin môn học (tên, số tín chỉ, số tiết, mô tả, khoa). " +
