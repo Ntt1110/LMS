@@ -1,6 +1,7 @@
 package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.LoginRequest;
+import com.example.LMS.dto.request.ResetPasswordDto;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.dto.response.UserProfileResponse;
@@ -86,7 +87,7 @@ public class AuthController {
     }
     @PostMapping("/auth/reset-password")
     @Operation(summary = "Đặt lại mật khẩu mới sử dụng Token xác thực từ Email")
-    public ApiResponse<String> resetPassword(@jakarta.validation.Valid @RequestBody com.example.LMS.dto.request.ResetPasswordDto dto) {
+    public ApiResponse<String> resetPassword(@Valid @RequestBody ResetPasswordDto dto) {
 
         authService.resetPassword(dto);
 
@@ -97,4 +98,32 @@ public class AuthController {
                 .build();
     }
 
+
+    @PostMapping("/auth/change-password")
+    @Operation(summary = "Đổi mật khẩu tài khoản (Yêu cầu nhập mật khẩu cũ và mới)")
+    public ApiResponse<String> changePassword(
+            @Valid @RequestBody com.example.LMS.dto.request.ChangePasswordDto dto) {
+
+        authService.changePassword(dto);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Thay đổi mật khẩu tài khoản thành công!")
+                .data("PASSWORD_CHANGED_SUCCESS")
+                .build();
+    }
+
+    @PostMapping("/auth/forgot-password")
+    @Operation(summary = "Nhập Email để hệ thống sinh Token và gửi link đặt lại mật khẩu")
+    public ApiResponse<String> forgotPassword(
+            @jakarta.validation.Valid @RequestBody com.example.LMS.dto.request.ForgotPasswordDto dto) {
+
+        authService.processForgotPassword(dto);
+
+        return ApiResponse.<String>builder()
+                .code(200)
+                .message("Hệ thống đã gửi mã xác thực về Email của bạn. Vui lòng kiểm tra hòm thư!")
+                .data("FORGOT_PASSWORD_SUCCESS")
+                .build();
+    }
 }
