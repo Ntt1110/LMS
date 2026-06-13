@@ -6,14 +6,17 @@ import com.example.LMS.dto.request.CourseProposalRequest;
 import com.example.LMS.dto.request.CourseRejectRequest;
 import com.example.LMS.dto.request.UpdateCourseRequest;
 import com.example.LMS.dto.response.CourseResponse;
+import com.example.LMS.entity.Enum.ClassStatus;
 import com.example.LMS.entity.model.Course;
 import com.example.LMS.entity.model.Department;
 import com.example.LMS.exception.CustomException;
+import com.example.LMS.repository.ClassEntityRepository;
 import com.example.LMS.repository.CourseRepository;
 import com.example.LMS.repository.DepartmentRepository;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -21,13 +24,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.persistence.criteria.JoinType;
 
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CourseService {
 
     private final CourseRepository courseRepository;
     private final DepartmentRepository departmentRepository;
-
+    private final ClassEntityRepository classEntityRepository;
     // ============================================================
     // DANH SÁCH MÔN HỌC
     // ============================================================
@@ -205,6 +210,7 @@ public class CourseService {
                         HttpStatus.NOT_FOUND,
                         "Không tìm thấy môn học với id: " + id
                 ));
+        checkCourseUsageBeforeDelete(id);
 
         // 2. Set thời điểm xóa mềm
         course.setDeletedAt(java.time.LocalDateTime.now());
@@ -267,5 +273,25 @@ public class CourseService {
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
+    }
+
+    private void checkCourseUsageBeforeDelete(Long courseId) {
+        log.info("🔍 [CHECKING USAGE] Đang rà soát các lớp học phần của môn học ID: {}", courseId);
+
+        // 🔄 ĐỔI TÊN HÀM GỌI THEO REPO MỚI NÈ NÍ:
+        long ongoingClassesCount = classEntityRepository.countClassesByCourseAndStatus(
+                courseId,
+               ClassStatus.ONGOING
+        );
+
+        // Nếu còn bất kỳ lớp nào đang học, ném ngoại lệ chặn đứng luồng xóa
+        if (ongoingClassesCount > 0) {
+            log.warn("❌ [DENIED DELETE] Chặn xóa môn học ID [{}]: Hiện vẫn còn {} lớp đang học!",
+                    courseId, ongoingClassesCount);
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    String.format("Không thể xóa môn học! Hiện tại đang có %d lớp học phần của môn này đang trong quá trình giảng dạy (ONGOING).", ongoingClassesCount)
+            );
+        }
     }
 }
