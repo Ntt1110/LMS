@@ -1,9 +1,6 @@
 package com.example.LMS.service;
 
-import com.example.LMS.dto.request.ChangePasswordDto;
-import com.example.LMS.dto.request.CreateUserRequest;
-import com.example.LMS.dto.request.LoginRequest;
-import com.example.LMS.dto.request.ResetPasswordDto;
+import com.example.LMS.dto.request.*;
 import com.example.LMS.dto.response.AuthResponse;
 import com.example.LMS.dto.response.UserProfileResponse;
 import com.example.LMS.entity.model.*;
@@ -245,9 +242,9 @@ public class AuthService {
         User user = userRepository.findByEmail(dto.getEmail()) // Giả định UserRepository có hàm findByEmail
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Email này không tồn tại trên hệ thống!"));
 
-        // 2. Tạo chuỗi Token ngẫu nhiên (UUID) và đặt thời hạn sống là 15 phút
+        // 2. Tạo chuỗi Token ngẫu nhiên (UUID) và đặt thời hạn sống là 5 phút
         String generatedToken = java.util.UUID.randomUUID().toString();
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
 
         // 3. Lưu thông tin Token vào bảng password_resets
         PasswordReset passwordReset = PasswordReset.builder()
@@ -264,6 +261,7 @@ public class AuthService {
 
         log.info("✅ Hoàn tất xử lý. Token đã được lưu DB và bàn giao cho EmailService gửi ngầm.");
     }
+
 }
 
 
