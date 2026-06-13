@@ -1,5 +1,6 @@
 package com.example.LMS.service;
 
+import com.example.LMS.dto.response.NotificationResponse;
 import com.example.LMS.entity.model.Notification;
 import com.example.LMS.entity.model.StudentProfile;
 import com.example.LMS.entity.model.User;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
+import static java.util.stream.Collectors.toList;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +48,7 @@ public class NotificationService {
     // 2. DÀNH CHO SINH VIÊN: TỰ ĐỘNG BỐC THÔNG BÁO PHÙ HỢP THEO KHOA/NGÀNH
     // =========================================================================
     @Transactional(readOnly = true)
-    public List<Notification> getMyNotifications() {
+    public List<NotificationResponse> getMyNotifications() {
         // Lấy thông tin tài khoản đang đăng nhập từ Token
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
 
@@ -63,7 +66,18 @@ public class NotificationService {
 
         log.info("🎓 Sinh viên [{}] thuộc Khoa ID [{}] đang tải bảng thông báo...", currentUsername, studentDepartmentId);
 
-        // Gọi Query quét sạch thông báo toàn trường + thông báo riêng của Khoa sinh viên này học
-        return notificationRepository.findActiveNotificationsForStudent(studentDepartmentId);
+        List<Notification> entities = notificationRepository.findActiveNotificationsForStudent(studentDepartmentId);
+        return entities.stream().map(n ->
+                NotificationResponse.builder()
+                        .id(n.getId())
+                        .title(n.getTitle())
+                        .message(n.getMessage())
+                        .departmentId(n.getDepartmentId())
+                        .periodId(n.getPeriodId())
+                        .createdAt(n.getCreatedAt())
+                        .build() // 🌟 Không dùng dấu chấm phẩy ở đây, tự hiểu là return
+        ).toList();
     }
 }
+
+

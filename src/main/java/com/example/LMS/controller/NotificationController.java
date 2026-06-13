@@ -1,6 +1,7 @@
 package com.example.LMS.controller;
 
 import com.example.LMS.dto.response.ApiResponse;
+import com.example.LMS.dto.response.NotificationResponse;
 import com.example.LMS.entity.model.Notification;
 import com.example.LMS.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,8 +44,8 @@ public class NotificationController {
     // 🔔 API dành cho Sinh viên xem trên Dashboard Vue 3
     @GetMapping("/my")
     @Operation(summary = "Sinh viên lấy danh sách thông báo mở lớp thuộc Khoa của mình hoặc Toàn trường")
-    public ApiResponse<List<Notification>> getMyNotifications() {
-        return ApiResponse.<List<Notification>>builder()
+    public ApiResponse<List<NotificationResponse>> getMyNotifications() {
+        return ApiResponse.<List<NotificationResponse>>builder()
                 .code(200)
                 .message("Tải danh sách thông báo thành công!")
                 .data(notificationService.getMyNotifications())
