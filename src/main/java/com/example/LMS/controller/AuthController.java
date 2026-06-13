@@ -85,7 +85,7 @@ public class AuthController {
                 .data(myProfile)
                 .build();
     }
-    @PostMapping("/auth/reset-password")
+    @PostMapping("/reset-password")
     @Operation(summary = "Đặt lại mật khẩu mới sử dụng Token xác thực từ Email")
     public ApiResponse<String> resetPassword(@Valid @RequestBody ResetPasswordDto dto) {
 
@@ -99,7 +99,7 @@ public class AuthController {
     }
 
 
-    @PostMapping("/auth/change-password")
+    @PostMapping("/change-password")
     @Operation(summary = "Đổi mật khẩu tài khoản (Yêu cầu nhập mật khẩu cũ và mới)")
     public ApiResponse<String> changePassword(
             @Valid @RequestBody com.example.LMS.dto.request.ChangePasswordDto dto) {
@@ -113,7 +113,7 @@ public class AuthController {
                 .build();
     }
 
-    @PostMapping("/auth/forgot-password")
+    @PostMapping("/forgot-password")
     @Operation(summary = "Nhập Email để hệ thống sinh Token và gửi link đặt lại mật khẩu")
     public ApiResponse<String> forgotPassword(
             @jakarta.validation.Valid @RequestBody com.example.LMS.dto.request.ForgotPasswordDto dto) {
