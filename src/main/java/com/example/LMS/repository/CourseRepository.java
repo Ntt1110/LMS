@@ -41,6 +41,8 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     // 2. Hàm lọc thông minh: Chỉ lấy môn học thuộc Khoa mà Trưởng khoa quản lý (Khớp 100% với Course.java)
     @Query("SELECT new com.example.LMS.dto.response.DropdownResponseDto(c.id, CONCAT(c.code, ' - ', c.name)) " +
             "FROM Course c " +
-            "WHERE c.department.id = :departmentId")
+            "WHERE c.department.id = :departmentId " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.code ASC")
     List<DropdownResponseDto> findCoursesByDepartmentId(@Param("departmentId") Long departmentId);
 }
