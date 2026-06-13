@@ -124,6 +124,7 @@ public class MajorService {
                         "Không tìm thấy ngành học với id: " + id));
 
         major.setDeletedAt(java.time.LocalDateTime.now());
+        major.setIsActive(false);
         majorRepository.save(major);
 
         log.info("✅ Đã xóa mềm ngành học: {} - {}", major.getCode(), major.getName());
