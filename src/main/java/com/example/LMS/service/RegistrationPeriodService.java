@@ -4,13 +4,11 @@ import com.example.LMS.dto.request.RegistrationPeriodRequestDto;
 import com.example.LMS.entity.Enum.ClassStatus;
 import com.example.LMS.entity.Enum.EnrollmentStatus;
 import com.example.LMS.entity.Enum.RegistrationStatus;
+import com.example.LMS.entity.model.Notification;
 import com.example.LMS.entity.model.RegistrationPeriod;
 import com.example.LMS.entity.model.Semester;
 import com.example.LMS.exception.CustomException;
-import com.example.LMS.repository.ClassEntityRepository;
-import com.example.LMS.repository.EnrollmentRepository;
-import com.example.LMS.repository.RegistrationPeriodRepository;
-import com.example.LMS.repository.SemesterRepository;
+import com.example.LMS.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +30,8 @@ public class RegistrationPeriodService {
     private final SemesterRepository semesterRepository;
     private final ClassEntityRepository classRepository;
     private final ObjectMapper objectMapper;
+
+    private final NotificationRepository notificationRepository;
 
     private final EnrollmentRepository enrollmentRepository;
 
@@ -89,6 +89,28 @@ public class RegistrationPeriodService {
         if (calculatedStatus == RegistrationStatus.ACTIVE) {
             activateClassesForRegistration(semester.getId(), savedPeriod.getId());
         }
+
+
+
+        // 🌟 TỰ ĐỘNG TẠO THÔNG BÁO GẮN PERIOD ID (Sinh viên đọc được để biết sắp đến ngày ĐKHP)
+        String notificationTitle = "Thông báo: " + savedPeriod.getName();
+        String notificationMessage = String.format(
+                "Hệ thống LMS thông báo mở đợt đăng ký học phần: %s.\n" +
+                        "Thời gian bắt đầu cổng mở: %s\n" +
+                        "Thời gian kết thúc khóa cổng: %s\n" +
+                        "Sinh viên chú ý lịch để thực hiện đăng ký học phần đúng hạn!",
+                savedPeriod.getName(), savedPeriod.getStartTime(), savedPeriod.getEndTime()
+        );
+
+        Notification notification = Notification.builder()
+                .title(notificationTitle)
+                .message(notificationMessage)
+                .departmentId(null)
+                .periodId(savedPeriod.getId())
+                .build();
+
+        notificationRepository.save(notification);
+
 
         log.info("✅ Lưu đợt đăng ký thành công. Đã kích hoạt liên kết với Controller.");
     }
