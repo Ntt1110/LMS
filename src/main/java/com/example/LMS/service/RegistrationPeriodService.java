@@ -102,15 +102,33 @@ public class RegistrationPeriodService {
                 savedPeriod.getName(), savedPeriod.getStartTime(), savedPeriod.getEndTime()
         );
 
-        Notification notification = Notification.builder()
-                .title(notificationTitle)
-                .message(notificationMessage)
-                .departmentId(null)
-                .periodId(savedPeriod.getId())
-                .build();
+        // Trích xuất danh sách ID các Khoa được cấu hình trong đợt đăng ký này
+        List<Long> targetDeptIds = dto.getTargetDepartments();
 
-        notificationRepository.save(notification);
-
+        if (targetDeptIds == null || targetDeptIds.isEmpty()) {
+            // 👉 NHÁNH A: Đợt đăng ký áp dụng đại trà TOÀN TRƯỜNG -> departmentId để NULL
+            Notification globalNotification = Notification.builder()
+                    .title(notificationTitle)
+                    .message(notificationMessage)
+                    .departmentId(null) // Tất cả sinh viên thuộc mọi khoa đều quét thấy
+                    .periodId(savedPeriod.getId())
+                    .build();
+            notificationRepository.save(globalNotification);
+            log.info("📢 Đã tự động phát hành thông báo đợt đăng ký diện TOÀN TRƯỜNG.");
+        } else {
+            // 👉 NHÁNH B: Đợt đăng ký giới hạn cho một vài Khoa mục tiêu -> Đẻ thông báo đích danh
+            log.info("📢 Đang phân phối thông báo đợt đăng ký đích danh cho {} Khoa hệ thống...", targetDeptIds.size());
+            for (Long deptId : targetDeptIds) {
+                Notification deptNotification = Notification.builder()
+                        .title(notificationTitle)
+                        .message(notificationMessage)
+                        .departmentId(deptId) // Chỉ sinh viên thuộc khoa này mới thấy
+                        .periodId(savedPeriod.getId())
+                        .build();
+                notificationRepository.save(deptNotification);
+            }
+            log.info("✅ Đã hoàn tất phân phối thông báo tới các Khoa cụ thể: {}", targetDeptIds);
+        }
 
         log.info("✅ Lưu đợt đăng ký thành công. Đã kích hoạt liên kết với Controller.");
     }
