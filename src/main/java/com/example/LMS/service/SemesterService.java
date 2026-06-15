@@ -2,6 +2,7 @@ package com.example.LMS.service;
 
 import com.example.LMS.dto.request.SemesterCreateRequest;
 import com.example.LMS.dto.request.SemesterListRequest;
+import com.example.LMS.dto.request.SemesterUpdateRequest;
 import com.example.LMS.dto.response.SemesterResponse;
 import com.example.LMS.entity.Enum.ClassStatus;
 import com.example.LMS.entity.model.Semester;
@@ -58,13 +59,15 @@ public class SemesterService {
     // ============================================================
     // XEM CHI TIẾT HỌC KỲ
     // ============================================================
-    public SemesterResponse getSemesterById(Long id) {
+    // XEM CHI TIẾT HỌC KỲ — trả về SemesterDetailResponse
+// ============================================================
+    public SemesterDetailResponse getSemesterById(Long id) {
         Semester semester = semesterRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new CustomException(
                         HttpStatus.NOT_FOUND,
                         "Không tìm thấy học kỳ với id: " + id
                 ));
-        return SemesterResponse.fromEntity(semester);
+        return SemesterDetailResponse.fromEntity(semester);
     }
 
     // ============================================================
@@ -95,6 +98,38 @@ public class SemesterService {
         return SemesterResponse.fromEntity(semesterRepository.save(semester));
     }
 
+
+    // CẬP NHẬT HỌC KỲ
+// PUT /api/v1/semesters/{id}
+// Không cho sửa semesterCode, status
+// Không cho sửa nếu đã CLOSED
+// ============================================================
+    @Transactional
+    public SemesterDetailResponse updateSemester(Long id, SemesterUpdateRequest request) {
+
+        Semester semester = semesterRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy học kỳ!"));
+
+        // Không cho cập nhật học kỳ đã đóng
+        if (semester.getStatus() == Semester.SemesterStatus.CLOSED) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Học kỳ đã CLOSED, không thể cập nhật!");
+        }
+
+        // Validate ngày
+        if (!request.getEndDate().isAfter(request.getStartDate())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "Ngày kết thúc phải sau ngày bắt đầu!");
+        }
+
+        semester.setAcademicYear(request.getAcademicYear().trim());
+        semester.setSemesterNumber(request.getSemesterNumber());
+        semester.setStartDate(request.getStartDate());
+        semester.setEndDate(request.getEndDate());
+
+        return SemesterDetailResponse.fromEntity(semesterRepository.save(semester));
+    }
     // ============================================================
     // SPECIFICATION (dynamic filter)
     // ============================================================

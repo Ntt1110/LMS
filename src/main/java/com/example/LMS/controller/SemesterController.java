@@ -2,6 +2,7 @@ package com.example.LMS.controller;
 
 import com.example.LMS.dto.request.SemesterCreateRequest;
 import com.example.LMS.dto.request.SemesterListRequest;
+import com.example.LMS.dto.request.SemesterUpdateRequest;
 import com.example.LMS.dto.response.ApiResponse;
 import com.example.LMS.dto.response.ClassResponse;
 import com.example.LMS.dto.response.SemesterDetailResponse;
@@ -81,8 +82,12 @@ public class SemesterController {
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Chi tiết học kỳ")
-    public ResponseEntity<SemesterResponse> getSemesterById(@PathVariable Long id) {
-        return ResponseEntity.ok(semesterService.getSemesterById(id));
+    public ApiResponse<SemesterDetailResponse> getSemesterById(@PathVariable Long id) {
+        return ApiResponse.<SemesterDetailResponse>builder()
+                .code(200)
+                .message("Tải chi tiết học kỳ thành công!")
+                .data(semesterService.getSemesterById(id))
+                .build();
     }
 
     // ============================================================
@@ -95,6 +100,29 @@ public class SemesterController {
     public ResponseEntity<SemesterResponse> createSemester(@Valid @RequestBody SemesterCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(semesterService.createSemester(request));
+    }
+    // PUT /api/v1/semesters/{id}
+// Cập nhật học kỳ (academicYear, semesterNumber, startDate, endDate)
+// Không cho sửa semesterCode và status
+// Quyền: SEMESTER_CREATE (dùng chung quyền quản lý học kỳ)
+// ============================================================
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('SEMESTER_CREATE')")
+    @Operation(
+            summary = "Cập nhật học kỳ",
+            description = "Cho phép sửa năm học, số thứ tự, ngày bắt đầu, ngày kết thúc. " +
+                    "Không cho phép sửa mã học kỳ và trạng thái. " +
+                    "Học kỳ đã CLOSED thì không được cập nhật."
+    )
+    public ApiResponse<SemesterDetailResponse> updateSemester(
+            @PathVariable Long id,
+            @Valid @RequestBody SemesterUpdateRequest request
+    ) {
+        return ApiResponse.<SemesterDetailResponse>builder()
+                .code(200)
+                .message("Cập nhật học kỳ thành công!")
+                .data(semesterService.updateSemester(id, request))
+                .build();
     }
 
     @PostMapping("/{semesterId}/close")
