@@ -29,7 +29,7 @@ import com.example.LMS.repository.DepartmentRepository;
 import com.example.LMS.repository.MajorRepository;
 import com.example.LMS.dto.request.LockUserRequest;
 import com.example.LMS.dto.response.ApiResponse;
-
+import com.example.LMS.dto.response.RoleDropdownResponseDto;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -176,7 +176,7 @@ public class UserService {
                 .collect(Collectors.toList());
     }
     // Dropdown danh sách vai trò (id + name)
-    public List<DropdownResponseDto> getRolesDropdown() {
+    public List<RoleDropdownResponseDto> getRolesDropdown()  {
         log.info("⏳ Đang lấy dropdown danh sách vai trò...");
 
         // Lấy role của người đang đăng nhập
@@ -212,7 +212,7 @@ public class UserService {
 
         return roleRepository.findAll().stream()
                 .filter(role -> !rolesToHide.contains(role.getCode()))
-                .map(role -> DropdownResponseDto.builder()
+                .map(role -> RoleDropdownResponseDto.builder()
                         .id(role.getId())
                         .code(role.getCode())
                         .name(role.getName())

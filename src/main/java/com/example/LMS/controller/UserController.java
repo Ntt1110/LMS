@@ -19,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.example.LMS.dto.request.UpdateUserRequest;
 import com.example.LMS.dto.request.LockUserRequest;
+import com.example.LMS.dto.response.RoleDropdownResponseDto;
 
 import java.util.List;
 
@@ -123,8 +124,8 @@ public class UserController {
             summary = "Dropdown danh sách vai trò",
             description = "Trả về danh sách vai trò dạng gọn (id + name) dùng cho các ô chọn Dropdown trên UI"
     )
-    public ApiResponse<List<DropdownResponseDto>> getRolesDropdown() {
-        return ApiResponse.<List<DropdownResponseDto>>builder()
+    public ApiResponse<List<RoleDropdownResponseDto>> getRolesDropdown() {
+        return ApiResponse.<List<RoleDropdownResponseDto>>builder()
                 .code(200)
                 .message("Lấy dropdown danh sách vai trò thành công!")
                 .data(userService.getRolesDropdown())
