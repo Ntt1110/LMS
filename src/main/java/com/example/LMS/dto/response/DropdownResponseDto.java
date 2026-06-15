@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 public class DropdownResponseDto {
 
     private Long id;       // ID thực thể
-    private String code;   // Mã code (VD: ADMIN, PRINCIPAL, INSTRUCTOR...)
+
     private String name;   // Tên hiển thị trên UI
 }
