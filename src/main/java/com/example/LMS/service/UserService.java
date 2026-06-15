@@ -175,11 +175,43 @@ public class UserService {
                 .map(u -> UserResponse.fromEntity(u, u.getProfile(), u.getTeacherProfile()))
                 .collect(Collectors.toList());
     }
-
     // Dropdown danh sách vai trò (id + name)
     public List<DropdownResponseDto> getRolesDropdown() {
         log.info("⏳ Đang lấy dropdown danh sách vai trò...");
+
+        // Lấy role của người đang đăng nhập
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản!"));
+
+        Set<String> myRoles = new HashSet<>();
+        currentUser.getRoles().forEach(r -> myRoles.add(r.getCode()));
+
+        // Xác định các role bị ẩn theo phân cấp
+        // Tất cả      → ẩn ADMIN
+        // HR          → ẩn PRINCIPAL
+        // TRAINING_DEPT → ẩn PRINCIPAL, HR
+        // HEAD_OF_DEPT  → ẩn PRINCIPAL, HR, TRAINING_DEPT
+        Set<String> rolesToHide = new HashSet<>();
+
+        // Tất cả đều ẩn ADMIN — kể cả chính ADMIN
+        rolesToHide.add("ADMIN");
+
+        if (myRoles.contains("HR")) {
+            rolesToHide.add("PRINCIPAL");
+        }
+        if (myRoles.contains("TRAINING_DEPT")) {
+            rolesToHide.add("PRINCIPAL");
+            rolesToHide.add("HR");
+        }
+        if (myRoles.contains("HEAD_OF_DEPT")) {
+            rolesToHide.add("PRINCIPAL");
+            rolesToHide.add("HR");
+            rolesToHide.add("TRAINING_DEPT");
+        }
+
         return roleRepository.findAll().stream()
+                .filter(role -> !rolesToHide.contains(role.getCode()))
                 .map(role -> DropdownResponseDto.builder()
                         .id(role.getId())
                         .name(role.getName())
