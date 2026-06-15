@@ -214,6 +214,7 @@ public class UserService {
                 .filter(role -> !rolesToHide.contains(role.getCode()))
                 .map(role -> DropdownResponseDto.builder()
                         .id(role.getId())
+                        .code(role.getCode())
                         .name(role.getName())
                         .build())
                 .toList();

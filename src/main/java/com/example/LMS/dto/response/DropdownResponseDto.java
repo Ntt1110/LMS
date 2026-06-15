@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class DropdownResponseDto {
 
-    private Long id;       // ID thực thể dùng để bọc gửi dữ liệu (roomId, shiftId, userId...)
-
-    private String name;   // Tên hiển thị sạch sẽ trên UI Dropdown (Ví dụ: "Phòng A1", "Ca 1 (Sáng)", "Nguyễn Thành Trung")
+    private Long id;       // ID thực thể
+    private String code;   // Mã code (VD: ADMIN, PRINCIPAL, INSTRUCTOR...)
+    private String name;   // Tên hiển thị trên UI
 }
